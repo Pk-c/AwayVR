@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+*.user
+*.suo
+
+# Game files: NEVER publish these, they belong to the publisher
+*.dll
+!lib/**/*.dll
+globalgamemanagers
+globalgamemanagers.orig
+Away_Data/
+
+# Generated archives: rebuilt by tools/pack.ps1, not versioned
+dist/
+
+# Local artefacts
+*.log
+BepInEx/
+__pycache__/
+*.pyc

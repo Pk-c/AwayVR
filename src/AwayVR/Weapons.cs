@@ -1,0 +1,531 @@
+using UnityEngine;
+
+namespace AwayVR
+{
+    /// <summary>
+    /// Attaches the viewmodel to the tracked hand.
+    ///
+    /// Two traps specific to this game:
+    ///
+    ///  - the weapon models do NOT live under Weapons_Camera but under "Hide_W_y_n"
+    ///    (Hide_W_y_n/weapon_sway/&lt;weapon&gt;), another child of the camera;
+    ///  - an Animator driven by hide_all_weapons animates Hide_W_y_n's local POSITION to
+    ///    holster and draw the weapon. It therefore overwrites it every frame, which left
+    ///    any position offset with no effect at all while rotation, which is not animated,
+    ///    worked fine.
+    ///
+    /// Hence the intermediate anchor: we write our transform onto it and the game keeps
+    /// control of the weapon's own. The two coexist instead of fighting.
+    /// </summary>
+    internal static class Weapons
+    {
+        private const string AnchorName = "AwayVR_WeaponAnchor";
+
+        private static Transform _root;
+        private static Transform _anchor;
+
+        private static Transform _origParent;
+        private static Vector3 _origPos;
+        private static Quaternion _origRot;
+        private static Vector3 _origScale;
+        private static bool _captured;
+
+        /// <summary>Model point to place in the hand, in the anchor's local space.</summary>
+        private static Vector3 _gripLocal;
+        private static string _signature;
+        private static float _nextCheck;
+
+        public static Transform Root { get { return _root; } }
+
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Detects a brand-new weapon holder and releases the old one.
+        ///
+        /// FindRoot keeps the first one it found for as long as it exists. But the game
+        /// recreates that node without destroying the previous one: the lever cutscenes,
+        /// which switch camera to show the dungeon entrance, bring a fresh one back on
+        /// return. Ours then stayed attached to the hand while the new one drew in its
+        /// normal place — hence two arms. We hand the old one back to its camera and start
+        /// again from the new one.
+        /// </summary>
+        private static void VerifierNouveauPorteArme(bool log)
+        {
+            if (_root == null || _anchor == null) return;
+
+            foreach (var t in Object.FindObjectsOfType<Transform>())
+            {
+                if (t == null || t == _root) continue;
+                if (t.name != "Hide_W_y_n") continue;
+                if (EstSous(t, _anchor)) continue;
+
+                if (log || Plugin.CfgVerbose.Value)
+                    Plugin.Log.LogInfo("New weapon holder detected: releasing the old one.");
+                Restore(false);
+                Forget();
+                return;
+            }
+        }
+
+        private static bool EstSous(Transform t, Transform parent)
+        {
+            for (var p = t; p != null; p = p.parent)
+                if (p == parent) return true;
+            return false;
+        }
+
+        private static Transform FindRoot()
+        {
+            if (_root != null) return _root;
+
+            var go = GameObject.Find("Hide_W_y_n");
+            if (go == null) go = GameObject.Find("Weapons_Camera");
+            if (go == null) return null;
+
+            _root = go.transform;
+            if (!_captured)
+            {
+                _origParent = _root.parent;
+                _origPos = _root.localPosition;
+                _origRot = _root.localRotation;
+                _origScale = _root.localScale;
+                _captured = true;
+            }
+            return _root;
+        }
+
+        private static Transform EnsureAnchor(Transform hand)
+        {
+            if (_anchor != null && _anchor.parent == hand) return _anchor;
+
+            var existing = hand.Find(AnchorName);
+            if (existing != null) { _anchor = existing; return _anchor; }
+
+            var go = new GameObject(AnchorName);
+            _anchor = go.transform;
+            _anchor.SetParent(hand, false);
+            return _anchor;
+        }
+
+        // ------------------------------------------------------------------
+
+        public static void Apply(WeaponAttachMode mode, bool log)
+        {
+            VerifierNouveauPorteArme(log);
+
+            var root = FindRoot();
+            if (root == null) return;
+
+            if (mode == WeaponAttachMode.Off)
+            {
+                Restore(log);
+                return;
+            }
+
+            // A weapons camera still active would become a controller-driven camera, so we
+            // insist it be merged or switched off.
+            var wcam = root.GetComponent<Camera>();
+            if (wcam != null && wcam.enabled)
+            {
+                if (log)
+                    Plugin.Log.LogWarning("WeaponsCameraMode=Keep is incompatible with attaching to the hand: "
+                                          + "switch to Merge.");
+                return;
+            }
+
+            var hand = Hands.Get(mode == WeaponAttachMode.Left ? HandSide.Left : HandSide.Right);
+            if (hand == null) return;
+
+            var anchor = EnsureAnchor(hand);
+            NeutralizeTransformScripts(root, log);
+
+            if (root.parent != anchor)
+            {
+                root.SetParent(anchor, false);
+                _signature = null;
+                if (log) Plugin.Log.LogInfo("Viewmodel attached to " + hand.name);
+            }
+
+            // Model pose zeroed inside the anchor. The holstering Animator writes a
+            // translation that differs depending on the state at the moment we attach it: on
+            // respawn, on a map change or after a death, the model arrived in a different
+            // pose and the measured grip point no longer matched. Pinning it makes the
+            // settings valid once and for all.
+            Fixer(root);
+
+            RefreshAutoOffset(hand, log);
+            Pose();
+        }
+
+        /// <summary>
+        /// Cancels the translation the Animator writes on the viewmodel root. Call this in
+        /// LateUpdate: the animation is evaluated between Update and LateUpdate, so that is
+        /// the only moment when we run after it.
+        /// </summary>
+        public static void Fixer()
+        {
+            if (_root != null && _root.parent == _anchor) Fixer(_root);
+        }
+
+        private static void Fixer(Transform root)
+        {
+            if (root.localPosition != Vector3.zero) root.localPosition = Vector3.zero;
+            if (root.localRotation != Quaternion.identity) root.localRotation = Quaternion.identity;
+        }
+
+        /// <summary>
+        /// Anchor pose. Called every frame: the menu settings are visible as you move them,
+        /// and the game's Animator can no longer overwrite them.
+        /// </summary>
+        public static void Pose()
+        {
+            if (_anchor == null) return;
+
+            // The game holsters weapons through basics.hide_weapons (chests, dialogues,
+            // mini-games). It relies on an Animator sliding the weapon out of the camera's
+            // frustum; attached to the hand, that translation no longer takes it out of
+            // sight. So we disable the anchor, which also suspends weapons_sword and stops
+            // you attacking with an empty hand.
+            bool cacher = basics.hide_weapons;
+            if (_anchor.gameObject.activeSelf == cacher)
+                _anchor.gameObject.SetActive(!cacher);
+            if (cacher) return;
+
+            float scale = Plugin.CfgWeaponScale.Value;
+            _anchor.localScale = new Vector3(scale, scale, scale);
+            _anchor.localRotation = Quaternion.identity;
+
+            var position = new Vector3(
+                Plugin.CfgWeaponOffX.Value, Plugin.CfgWeaponOffY.Value, Plugin.CfgWeaponOffZ.Value);
+
+            // The offset is expressed in RIG space, not in hand space.
+            //
+            // That was the underlying cause: an offset expressed in hand space rotates with
+            // the wrist. It becomes a lever arm, so moving the weapon inevitably moved its
+            // centre of rotation too. No value could satisfy both requirements at once — it
+            // was structural.
+            //
+            // By cancelling the hand's rotation on the offset alone, the held point ends up
+            // at "controller position + offset" expressed in the rig: a position the wrist's
+            // rotation no longer changes. The weapon therefore turns in place around that
+            // point, and the offset merely translates it.
+            var hand = _anchor.parent;
+            var decalageMain = hand != null
+                ? Quaternion.Inverse(hand.localRotation) * position
+                : position;
+
+            _anchor.localPosition = decalageMain - _gripLocal * scale;
+        }
+
+        /// <summary>
+        /// Realigns the weapon on the hand by measuring the real centre of its renderers:
+        /// model pivots often sit a long way from the model itself. Recomputed only on a
+        /// weapon change, otherwise the correction would fight the holstering animation.
+        /// </summary>
+        /// <summary>
+        /// Fragments to ignore when picking the reference model. The viewmodel mixes the
+        /// weapon with full-screen effects, a shield and decorative elements that switch on
+        /// and off during play; including them gave a nonsensical grip point, and above all
+        /// an unstable one.
+        /// </summary>
+        private static readonly string[] Parasites =
+        {
+            "fx", "blink", "sphere", "torus", "shield", "sprite", "particle",
+            "glow", "light", "trail", "smoke", "fire", "ember", "flame"
+        };
+
+        /// <summary>The largest non-parasitic renderer: that is the weapon model.</summary>
+        private static Renderer MainRenderer()
+        {
+            if (_root == null) return null;
+
+            Renderer best = null;
+            float meilleurVolume = -1f;
+
+            foreach (var r in _root.GetComponentsInChildren<Renderer>(false))
+            {
+                if (r == null || !r.enabled) continue;
+                if (r is ParticleSystemRenderer) continue;
+
+                var n = r.name.ToLowerInvariant();
+                bool parasite = false;
+                foreach (var f in Parasites)
+                    if (n.IndexOf(f) >= 0) { parasite = true; break; }
+                if (parasite) continue;
+
+                var t = r.bounds.size;
+                float vol = t.x * t.y * t.z;
+                if (vol <= 0f) continue;
+                if (vol > meilleurVolume) { meilleurVolume = vol; best = r; }
+            }
+            return best;
+        }
+
+        private static void RefreshAutoOffset(Transform hand, bool log)
+        {
+            if (Time.unscaledTime < _nextCheck) return;
+            _nextCheck = Time.unscaledTime + 0.1f;
+
+            var principal = MainRenderer();
+            if (principal == null) return;
+
+            // The signature no longer depends on the NUMBER of active renderers. Effects
+            // and decorations lighting up during play kept changing it, so the grip point
+            // was recomputed and the weapon jumped mid-game.
+            string sig = principal.name + "|" + Plugin.CfgWeaponAnchor.Value;
+            if (sig == _signature) return;
+
+            Bounds local;
+            if (!TryRendererBounds(principal, out local)) return;
+            _signature = sig;
+
+            switch (Plugin.CfgWeaponAnchor.Value)
+            {
+                case WeaponAnchorPoint.Pivot:
+                    _gripLocal = Vector3.zero;
+                    break;
+
+                case WeaponAnchorPoint.Centre:
+                    _gripLocal = local.center;
+                    break;
+
+                case WeaponAnchorPoint.Base:
+                    _gripLocal = SurAxeDominant(local, false);
+                    break;
+
+                case WeaponAnchorPoint.Tip:
+                    _gripLocal = SurAxeDominant(local, true);
+                    break;
+
+                default:
+                    // Hand: the grip sits at one end of the model, never in the middle. We
+                    // take the end of the longest axis, the only axis that makes sense here:
+                    // this game's model extends along X rather than Z, so looking for the
+                    // ends along Z produced nothing usable.
+                    _gripLocal = SurAxeDominant(local, false);
+                    break;
+            }
+
+            if (log)
+                Plugin.Log.LogInfo("  grip " + Plugin.CfgWeaponAnchor.Value
+                                   + " on '" + principal.name + "'"
+                                   + ": centre=" + local.center.ToString("0.00")
+                                   + " size=" + local.size.ToString("0.00")
+                                   + " -> grip=" + _gripLocal.ToString("0.000"));
+        }
+
+        /// <summary>
+        /// End of the model along its longest axis. The other axes keep the centre value,
+        /// so we stay in the middle of the cross-section.
+        /// </summary>
+        private static Vector3 SurAxeDominant(Bounds b, bool versLeMax)
+        {
+            var t = b.size;
+            var p = b.center;
+
+            if (t.x >= t.y && t.x >= t.z) p.x = versLeMax ? b.max.x : b.min.x;
+            else if (t.y >= t.z) p.y = versLeMax ? b.max.y : b.min.y;
+            else p.z = versLeMax ? b.max.z : b.min.z;
+
+            return p;
+        }
+
+        /// <summary>Bounds of a single renderer, expressed in anchor space.</summary>
+        private static bool TryRendererBounds(Renderer r, out Bounds local)
+        {
+            local = new Bounds();
+            if (r == null || _anchor == null) return false;
+            return Encapsuler(r, ref local, true);
+        }
+
+        /// <summary>Adds the 8 corners of a renderer's world bounds, in anchor space.</summary>
+        private static bool Encapsuler(Renderer r, ref Bounds local, bool premier)
+        {
+            var b = r.bounds;
+            var c = b.center;
+            var e = b.extents;
+            for (int i = 0; i < 8; i++)
+            {
+                var coin = new Vector3(
+                    c.x + ((i & 1) == 0 ? -e.x : e.x),
+                    c.y + ((i & 2) == 0 ? -e.y : e.y),
+                    c.z + ((i & 4) == 0 ? -e.z : e.z));
+                var p = _anchor.InverseTransformPoint(coin);
+                if (premier && i == 0) local = new Bounds(p, Vector3.zero);
+                else local.Encapsulate(p);
+            }
+            return true;
+        }
+
+        /// <summary>Current held point, shown in the menu so you can tune without guessing.</summary>
+        public static string GripInfo()
+        {
+            return _gripLocal.ToString("0.00");
+        }
+
+        /// <summary>Structure of the active viewmodel, to work out where the hand is.</summary>
+        public static void Dump(System.Text.StringBuilder sb)
+        {
+            sb.AppendLine("-- Viewmodel --");
+            if (_root == null) { sb.AppendLine("  (none)"); return; }
+            sb.AppendLine("  root   : " + Hierarchy.Path(_root));
+            sb.AppendLine("  anchor : " + (_anchor != null ? _anchor.name : "<none>")
+                          + "  grip=" + _gripLocal.ToString("0.000")
+                          + "  mode=" + Plugin.CfgWeaponAnchor.Value);
+
+            foreach (var r in _root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null || r is ParticleSystemRenderer) continue;
+                var b = r.bounds;
+                Vector3 enAncre = _anchor != null
+                    ? _anchor.InverseTransformPoint(b.center) : b.center;
+                // VISIBLE = renderer enabled AND object active in the hierarchy. The dump
+                // only reported the component's state, which made holstered weapons look as
+                // though they were on screen.
+                bool visible = r.enabled && r.gameObject.activeInHierarchy;
+                sb.AppendLine(string.Format("  [{0}] {1,-28} size={2}  centre(anchor)={3}",
+                    visible ? "SEEN" : "   ", r.name, b.size.ToString("0.00"),
+                    enAncre.ToString("0.00")));
+            }
+        }
+
+        /// <summary>
+        /// Everything visible on the player-weapons layer WITHOUT going through our anchor.
+        /// The second arm reported by the player is not under our weapon holder — only one
+        /// model is visible there — and is not called Hide_W_y_n, or the duplicate detection
+        /// would have caught it. So we look for it by what it is, not by its name.
+        /// </summary>
+        public static void DumpArmesOrphelines(System.Text.StringBuilder sb)
+        {
+            sb.AppendLine("-- Weapons visible outside our anchor --");
+            int n = 0;
+
+            foreach (var r in Object.FindObjectsOfType<Renderer>())
+            {
+                if (r == null || r is ParticleSystemRenderer) continue;
+                if (!r.enabled || !r.gameObject.activeInHierarchy) continue;
+
+                int layer = r.gameObject.layer;
+                string nomLayer = LayerMask.LayerToName(layer);
+                bool arme = nomLayer == "player_weapons"
+                            || Hierarchy.Path(r.transform).IndexOf("Hide_W_y_n",
+                                   System.StringComparison.OrdinalIgnoreCase) >= 0;
+                if (!arme) continue;
+                if (_anchor != null && EstSous(r.transform, _anchor)) continue;
+
+                sb.AppendLine("  " + Hierarchy.Path(r.transform)
+                              + "   layer=" + layer + " '" + nomLayer + "'"
+                              + "  size=" + r.bounds.size.ToString("0.00"));
+                if (++n >= 25) { sb.AppendLine("  ... (truncated)"); break; }
+            }
+
+            if (n == 0) sb.AppendLine("  (none)");
+        }
+
+        /// <summary>Signature of the active renderers: changes when the weapon changes.</summary>
+        private static string Signature()
+        {
+            if (_root == null) return "";
+            int n = 0;
+            string premier = "";
+            foreach (var r in _root.GetComponentsInChildren<Renderer>(false))
+            {
+                if (r == null || !r.enabled) continue;
+                if (r is ParticleSystemRenderer) continue;
+                if (n == 0) premier = r.name;
+                n++;
+            }
+            return n + ":" + premier;
+        }
+
+        /// <summary>
+        /// Model bounds expressed in the anchor's local space. We transform the 8 corners
+        /// of each renderer's world bounds into it: converting the centre alone would not
+        /// give us the ends, which we need in order to find the base of the model.
+        /// </summary>
+        private static bool TryLocalBounds(out Bounds local)
+        {
+            local = new Bounds();
+            if (_root == null || _anchor == null) return false;
+
+            bool any = false;
+            foreach (var r in _root.GetComponentsInChildren<Renderer>(false))
+            {
+                if (r == null || !r.enabled) continue;
+                if (r is ParticleSystemRenderer) continue;
+
+                var b = r.bounds;
+                var c = b.center;
+                var e = b.extents;
+
+                for (int i = 0; i < 8; i++)
+                {
+                    var coin = new Vector3(
+                        c.x + ((i & 1) == 0 ? -e.x : e.x),
+                        c.y + ((i & 2) == 0 ? -e.y : e.y),
+                        c.z + ((i & 4) == 0 ? -e.z : e.z));
+                    var p = _anchor.InverseTransformPoint(coin);
+                    if (!any) { local = new Bounds(p, Vector3.zero); any = true; }
+                    else local.Encapsulate(p);
+                }
+            }
+            return any;
+        }
+
+        private static bool TryBounds(Transform t, out Bounds b)
+        {
+            b = new Bounds();
+            bool any = false;
+            foreach (var r in t.GetComponentsInChildren<Renderer>(false))
+            {
+                if (r == null || !r.enabled) continue;
+                if (r is ParticleSystemRenderer) continue;
+                if (!any) { b = r.bounds; any = true; }
+                else b.Encapsulate(r.bounds);
+            }
+            return any;
+        }
+
+        /// <summary>
+        /// weapon_position and weapon_reinit_position reapply a WORLD position captured at
+        /// start-up, and weapons_sway swings the weapon with the mouse. All three undo the
+        /// attachment to the hand.
+        /// </summary>
+        private static void NeutralizeTransformScripts(Transform root, bool log)
+        {
+            int n = 0;
+            foreach (var c in root.GetComponentsInChildren<weapon_position>(true))
+                if (c.enabled) { c.enabled = false; n++; }
+            foreach (var c in root.GetComponentsInChildren<weapon_reinit_position>(true))
+                if (c.enabled) { c.enabled = false; n++; }
+            foreach (var c in root.GetComponentsInChildren<weapons_sway>(true))
+                if (c.enabled) { c.enabled = false; n++; }
+
+            if (n > 0 && log)
+                Plugin.Log.LogInfo("  " + n + " weapon repositioning script(s) neutralised.");
+        }
+
+        public static void Restore(bool log)
+        {
+            if (!_captured || _root == null) return;
+            if (_root.parent != _origParent)
+                _root.SetParent(_origParent, false);
+            _root.localPosition = _origPos;
+            _root.localRotation = _origRot;
+            _root.localScale = _origScale;
+            _signature = null;
+            if (log) Plugin.Log.LogInfo("Viewmodel handed back to the camera.");
+        }
+
+        /// <summary>Call on a scene change: the transforms have been destroyed.</summary>
+        public static void Forget()
+        {
+            _root = null;
+            _anchor = null;
+            _origParent = null;
+            _captured = false;
+            _signature = null;
+            _gripLocal = Vector3.zero;
+        }
+    }
+}
