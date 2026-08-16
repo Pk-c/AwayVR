@@ -65,7 +65,10 @@ namespace AwayVR
             // total to exceed the threshold and then caught up all at once: those discrete
             // 2 cm jumps were what made the view shake whenever it was pushed back. The
             // threshold now only serves to ignore tracking noise.
-            if (step.magnitude < Plugin.CfgRoomScaleDeadzone.Value) return;
+            // Deadzone against tracking noise. Half a millimetre: below the jitter of a
+            // stationary headset, far below any real step. There is one correct value here,
+            // so it is a constant rather than a setting nobody could tune usefully.
+            if (step.magnitude < 0.0005f) return;
 
             var world = rig.TransformVector(step);
             world.y = 0f;

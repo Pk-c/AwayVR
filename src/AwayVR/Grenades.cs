@@ -236,14 +236,7 @@ namespace AwayVR
         /// button fires the moment the input moves at all — which is what made grenades feel
         /// like they were going off on their own.
         /// </summary>
-        private static string GestureAxis
-        {
-            get
-            {
-                return Plugin.CfgGrenadeGestureAxis != null
-                    ? Plugin.CfgGrenadeGestureAxis.Value : "AwayVR_GripL";
-            }
-        }
+        private const string GestureAxis = "AwayVR_GripL";
 
         private static bool _armed;
         private static bool _throwPending;

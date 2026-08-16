@@ -5,39 +5,16 @@ using UnityEngine;
 namespace AwayVR
 {
     /// <summary>
-    /// Layer bisection on the main camera. When an artefact is neither a camera effect nor a
-    /// canvas, it is geometry: we hide the layers one at a time until it disappears, which
-    /// names it instead of leaving us to guess.
+    /// Layer inventory, for the diagnostic dump. Which layers actually carry renderers, and
+    /// which of those the camera is drawing — the two questions that tell a hidden object
+    /// apart from an object that is drawn but invisible.
     /// </summary>
     internal static class LayerTools
     {
-        private static int _originalMask;
-        private static bool _captured;
-        private static int _step = -1;
-        private static List<int> _candidates;
-
-        /// <summary>True during a bisection: continuous reapplication must stand aside.</summary>
-        public static bool BisectionActive { get { return _step >= 0; } }
-
-        private static void Capture(Camera cam)
+        public static string LayerName(int layer)
         {
-            if (_captured) return;
-            _originalMask = cam.cullingMask;
-            _captured = true;
-        }
-
-        /// <summary>Layers present in the mask AND carrying at least one active renderer.</summary>
-        private static List<int> Candidates(Camera cam)
-        {
-            var counts = RendererCountsByLayer();
-            var list = new List<int>();
-            for (int i = 0; i < 32; i++)
-            {
-                if ((_originalMask & (1 << i)) == 0) continue;
-                if (counts[i] == 0) continue;
-                list.Add(i);
-            }
-            return list;
+            var n = LayerMask.LayerToName(layer);
+            return string.IsNullOrEmpty(n) ? "<unnamed>" : n;
         }
 
         public static int[] RendererCountsByLayer()
@@ -50,84 +27,6 @@ namespace AwayVR
                 if (l >= 0 && l < 32) counts[l]++;
             }
             return counts;
-        }
-
-        /// <summary>Hides the next layer, restoring the previous one.</summary>
-        public static void Step(Camera cam)
-        {
-            if (cam == null) { Plugin.Log.LogWarning("No main camera."); return; }
-            Capture(cam);
-
-            if (_step < 0)
-                _candidates = Candidates(cam);
-
-            cam.cullingMask = _originalMask;
-            _step++;
-
-            if (_candidates == null || _step >= _candidates.Count)
-            {
-                _step = -1;
-                _candidates = null;
-                Plugin.Log.LogInfo("Bisection finished: every layer restored. If the artefact "
-                                   + "never went away, it is not rendered by the main camera.");
-                return;
-            }
-
-            int layer = _candidates[_step];
-            cam.cullingMask = _originalMask & ~(1 << layer);
-            Plugin.Log.LogInfo(string.Format("Layer hidden: {0} '{1}'   ({2}/{3})",
-                layer, LayerName(layer), _step + 1, _candidates.Count));
-        }
-
-        /// <summary>Removes the layers named in the configuration from the culling mask.</summary>
-        public static int ApplyHidden(Camera cam, string csv, bool log)
-        {
-            if (cam == null || string.IsNullOrEmpty(csv)) return 0;
-
-            int mask = cam.cullingMask;
-            int n = 0;
-            foreach (var raw in csv.Split(','))
-            {
-                var token = raw.Trim();
-                if (token.Length == 0) continue;
-
-                int layer;
-                if (!int.TryParse(token, out layer))
-                    layer = LayerMask.NameToLayer(token);
-
-                if (layer < 0 || layer > 31)
-                {
-                    Plugin.Log.LogWarning("Unknown layer in HiddenLayers: '" + token + "'");
-                    continue;
-                }
-                if ((mask & (1 << layer)) == 0) continue;
-
-                mask &= ~(1 << layer);
-                n++;
-                if (log)
-                    Plugin.Log.LogInfo("  layer hidden: " + layer + " '" + LayerName(layer) + "'");
-            }
-
-            cam.cullingMask = mask;
-            // Bisection must start from the effective state, hidden layers included.
-            _originalMask = mask;
-            _captured = true;
-            return n;
-        }
-
-        public static void Reset(Camera cam)
-        {
-            if (cam == null || !_captured) return;
-            cam.cullingMask = _originalMask;
-            _step = -1;
-            _candidates = null;
-            Plugin.Log.LogInfo("Culling mask restored.");
-        }
-
-        public static string LayerName(int layer)
-        {
-            var n = LayerMask.LayerToName(layer);
-            return string.IsNullOrEmpty(n) ? "<unnamed>" : n;
         }
 
         public static void Dump(StringBuilder sb, Camera cam)

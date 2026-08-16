@@ -4,16 +4,6 @@ using UnityEngine.Rendering;
 
 namespace AwayVR
 {
-    public enum PlayerBodyMode
-    {
-        /// <summary>Body invisible but still casting its shadow. Recommended.</summary>
-        ShadowsOnly,
-        /// <summary>Player layer removed from rendering entirely: no body, no shadow.</summary>
-        Hide,
-        /// <summary>Original state.</summary>
-        Keep
-    }
-
     /// <summary>
     /// In first person, the player mesh is placed outside the camera's frustum. In VR the
     /// headset moves the viewpoint and you end up seeing it from the inside: a dark
@@ -42,26 +32,11 @@ namespace AwayVR
             }
         }
 
-        public static int Apply(PlayerBodyMode mode, Camera cam, bool log)
+        public static int Apply(Camera cam, bool log)
         {
             if (cam == null) return 0;
 
             int layer = Layer;
-
-            // The culling mask is now recomputed continuously by VrManager: we no longer
-            // touch it here, otherwise the two would fight each other.
-            if (mode == PlayerBodyMode.Hide)
-            {
-                RestoreRenderers();
-                return 1;
-            }
-
-            if (mode == PlayerBodyMode.Keep)
-            {
-                RestoreRenderers();
-                return 0;
-            }
-
             int n = 0;
             foreach (var r in Object.FindObjectsOfType<Renderer>())
             {

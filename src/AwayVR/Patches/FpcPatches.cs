@@ -62,7 +62,7 @@ namespace AwayVR.Patches
         [HarmonyPrefix]
         private static bool RotateView_Prefix(FirstPersonController __instance)
         {
-            if (!VrManager.VrActive || !Plugin.CfgHmdDrivesPitch.Value)
+            if (!VrManager.VrActive)
                 return true;
             if (!FieldsResolved)
                 return true;
@@ -193,7 +193,7 @@ namespace AwayVR.Patches
         [HarmonyPrefix]
         private static bool UpdateCameraPosition_Prefix()
         {
-            return !(VrManager.VrActive && Plugin.CfgDisableHeadBob.Value);
+            return !VrManager.VrActive;
         }
 
         /// <summary>

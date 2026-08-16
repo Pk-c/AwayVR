@@ -186,7 +186,7 @@ namespace AwayVR
         /// </summary>
         private static void NeutraliseDefaultSkybox(Camera cam)
         {
-            if (!Plugin.CfgBlackDefaultSky.Value || cam == null) return;
+            if (cam == null) return;
 
             var sky = RenderSettings.skybox;
             bool parDefaut = sky == null
@@ -252,7 +252,9 @@ namespace AwayVR
             InGame = Object.FindObjectOfType<
                 UnityStandardAssets.Characters.FirstPerson.FirstPersonController>() != null;
 
-            cam.nearClipPlane = Plugin.CfgNearClip.Value;
+            // A near plane at five centimetres. Closer and the depth buffer loses precision
+            // across the whole scene; further and your own hands are clipped away.
+            cam.nearClipPlane = 0.05f;
             NeutraliseDefaultSkybox(cam);
             cam.stereoTargetEye = StereoTargetEyeMask.Both;
 
@@ -266,10 +268,7 @@ namespace AwayVR
                 _baseMask = cam.cullingMask;
             }
 
-            int off = CameraEffects.ApplyDisableList(Plugin.CfgDisabledEffects.Value, Plugin.CfgVerbose.Value);
-            if (off > 0) Log("  " + off + " full-screen effect(s) disabled.");
-
-            PlayerBody.Apply(Plugin.CfgPlayerBody.Value, cam, Plugin.CfgVerbose.Value);
+            PlayerBody.Apply(cam, Plugin.CfgVerbose.Value);
             Weapons.Apply(Plugin.CfgWeaponAttach.Value, Plugin.CfgVerbose.Value);
 
             HudCapture.OnSceneLoaded();
@@ -328,7 +327,7 @@ namespace AwayVR
         /// </summary>
         private void AdoptCameraChildren(Transform camT)
         {
-            if (!Plugin.CfgWorldLockCameraChildren.Value || Rig == null) return;
+            if (Rig == null) return;
 
             // During play the camera carries gameplay elements (weapon holders, impact FX,
             // wings) that the viewmodel already handles: we only detach in menu and cutscene
@@ -575,19 +574,14 @@ namespace AwayVR
             // Manual bisection drives the mask itself for the duration of its sweep.
             // Viewmodel pose every frame: the offsets are adjusted live.
             Weapons.Pose();
-            ControllerProbe.Tick();
 
 
             // Continuous HUD follow. Framerate-independent exponential damping:
             // 1 - exp(-k*dt) gives the same response at 72 as at 144 frames per second.
 
-            if (MainCamera == null || _maskCam != MainCamera || LayerTools.BisectionActive) return;
+            if (MainCamera == null || _maskCam != MainCamera) return;
 
             int mask = _baseMask;
-            foreach (var layer in Menu.HiddenLayers.Current)
-                mask &= ~(1 << layer);
-            if (Plugin.CfgPlayerBody.Value == PlayerBodyMode.Hide)
-                mask &= ~(1 << PlayerBody.PlayerLayer);
 
             // The mod's panels must NEVER go through the main camera: that is the whole
             // point of their dedicated pass, otherwise they would pick up its effects.
@@ -620,7 +614,6 @@ namespace AwayVR
         /// </summary>
         private static void KeepWeaponsCameraBlind()
         {
-            if (Plugin.CfgWeaponsCamera.Value != WeaponsCameraMode.Merge) return;
             if (_weaponsCam == null) return;
 
             // Re-enabled if the game switched it off: its effects need it running.
@@ -644,39 +637,19 @@ namespace AwayVR
 
             _weaponsCam = wCam;
 
-            switch (Plugin.CfgWeaponsCamera.Value)
-            {
-                case WeaponsCameraMode.Merge:
-                    // The weapons camera draws its layers on top, with its own near plane. In
-                    // stereo that overlay is flattened onto the screen: we fold its layers
-                    // into the main camera so the weapons live in the world.
-                    mainCam.cullingMask |= wCam.cullingMask;
-                    Log("  Weapons_Camera merged (mask added: 0x" + wCam.cullingMask.ToString("X") + ")");
-                    // Blinded, not disabled: see KeepWeaponsCameraBlind. The mask has to be
-                    // read before it is cleared, hence the order here.
-                    wCam.cullingMask = 0;
-                    wCam.enabled = true;
-                    break;
-
-                case WeaponsCameraMode.Disable:
-                    wCam.enabled = false;
-                    Log("  Weapons_Camera disabled.");
-                    break;
-
-                case WeaponsCameraMode.Keep:
-                    wCam.stereoTargetEye = StereoTargetEyeMask.Both;
-                    // Child of the main camera: otherwise the head pose would apply twice.
-                    if (IsDescendantOf(wGo.transform, mainCam.transform))
-                    {
-                        XRDevice.DisableAutoXRCameraTracking(wCam, true);
-                        Log("  Weapons_Camera kept (auto tracking disabled, it inherits from the parent).");
-                    }
-                    else
-                    {
-                        Log("  Weapons_Camera conservee.");
-                    }
-                    break;
-            }
+            // The weapons camera draws its layers on top, with its own near plane. In stereo
+            // that overlay is flattened onto the screen: we fold its layers into the main
+            // camera so the weapons live in the world.
+            //
+            // This was once a three-way choice. The other two were measured and dropped:
+            // keeping the camera gives the doubled arm, disabling it kills the per-character
+            // full-screen effects, which live on it and nowhere else.
+            mainCam.cullingMask |= wCam.cullingMask;
+            Log("  Weapons_Camera merged (mask added: 0x" + wCam.cullingMask.ToString("X") + ")");
+            // Blinded, not disabled: see KeepWeaponsCameraBlind. The mask has to be read
+            // before it is cleared, hence the order here.
+            wCam.cullingMask = 0;
+            wCam.enabled = true;
         }
 
         private static bool IsDescendantOf(Transform t, Transform ancestor)
@@ -737,29 +710,12 @@ namespace AwayVR
             if (Input.GetKeyDown(Plugin.CfgDiagKey.Value))
                 Diagnostics.DumpScene();
 
-            if (Input.GetKeyDown(Plugin.CfgToggleEffectsKey.Value))
-                CameraEffects.ToggleAll();
-
-            if (Input.GetKeyDown(Plugin.CfgStepLayerKey.Value))
-                LayerTools.Step(MainCamera);
-
-            if (Input.GetKeyDown(Plugin.CfgResetLayerKey.Value))
-                LayerTools.Reset(MainCamera);
-
-            if (Input.GetKeyDown(Plugin.CfgStepCanvasKey.Value))
-            {
-                CanvasTools.StepHide();
-                ReapplyScene();
-            }
-
 
             // Several of the game's scripts switch effects back on during play (going
             // underwater, damage filters, pause...), so we sweep behind them.
-            if (VrActive && !CameraEffects.AllSuspended && Time.unscaledTime >= _nextEffectSweep)
+            if (VrActive && Time.unscaledTime >= _nextEffectSweep)
             {
                 _nextEffectSweep = Time.unscaledTime + 0.5f;
-                CameraEffects.ApplyDisableList(Plugin.CfgDisabledEffects.Value, false);
-
                 // Swept rather than driven per frame: scanning every camera is far too
                 // costly at frame rate, and the game re-enables its bloom on its own.
                 CameraEffects.ApplyBloom(Plugin.CfgDisableBloom.Value);
@@ -780,12 +736,12 @@ namespace AwayVR
                 if (_weaponsCam == null && MainCamera != null)
                     ApplyWeaponsCameraMode(MainCamera);
 
-                // weapon_selector enables and disables weapons as the game goes on: each new
-                // arme arrive avec ses propres scripts de repositionnement.
+                // weapon_selector enables and disables weapons as the game goes on: each
+                // new weapon arrives with its own repositioning scripts.
                 Weapons.Apply(Plugin.CfgWeaponAttach.Value, false);
 
                 // The player body is re-enabled as characters are switched.
-                PlayerBody.Apply(Plugin.CfgPlayerBody.Value, MainCamera, false);
+                PlayerBody.Apply(MainCamera, false);
 
                 // The menu video quad is created after the scene has loaded.
                 if (MainCamera != null) AdoptCameraChildren(MainCamera.transform);

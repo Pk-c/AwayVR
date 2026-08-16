@@ -1,4 +1,4 @@
-using BepInEx;
+﻿using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -20,19 +20,13 @@ namespace AwayVR
         internal static ConfigEntry<float> CfgResolutionScale;
         internal static ConfigEntry<bool> CfgRecenterOnLoad;
         internal static ConfigEntry<bool> CfgRoomScaleMove;
-        internal static ConfigEntry<float> CfgRoomScaleDeadzone;
         internal static ConfigEntry<bool> CfgBlockCameraOnWalls;
 
         // --- camera ---
         internal static ConfigEntry<float> CfgHeightOffset;
         internal static ConfigEntry<float> CfgWorldScale;
-        internal static ConfigEntry<float> CfgNearClip;
-        internal static ConfigEntry<bool> CfgHmdDrivesPitch;
-        internal static ConfigEntry<bool> CfgDisableHeadBob;
-        internal static ConfigEntry<WeaponsCameraMode> CfgWeaponsCamera;
 
         // --- full-screen effects ---
-        internal static ConfigEntry<string> CfgDisabledEffects;
         internal static ConfigEntry<bool> CfgDisableBloom;
         internal static ConfigEntry<bool> CfgDisableColorGrading;
 
@@ -44,10 +38,8 @@ namespace AwayVR
         internal static ConfigEntry<float> CfgTurnDeadzone;
 
         // --- player body ---
-        internal static ConfigEntry<PlayerBodyMode> CfgPlayerBody;
 
         // --- layers ---
-        internal static ConfigEntry<string> CfgHiddenLayers;
 
         // --- weapons ---
         internal static ConfigEntry<WeaponAttachMode> CfgWeaponAttach;
@@ -61,17 +53,14 @@ namespace AwayVR
         internal static ConfigEntry<float> CfgSwingCooldown;
 
         // --- hidden canvases ---
-        internal static ConfigEntry<string> CfgHiddenCanvases;
 
         // --- HUD ---
-        internal static ConfigEntry<bool> CfgWorldLockCameraChildren;
         internal static ConfigEntry<float> CfgHudDistance;
         internal static ConfigEntry<float> CfgHudWidth;
         internal static ConfigEntry<float> CfgHudFollowSpeed;
 
         // --- menu ---
         internal static ConfigEntry<KeyCode> CfgMenuKey;
-        internal static ConfigEntry<float> CfgMenuScale;
         internal static ConfigEntry<float> CfgMenuDistance;
         internal static ConfigEntry<float> CfgMenuWidth;
         internal static ConfigEntry<float> CfgMenuVOffset;
@@ -79,23 +68,15 @@ namespace AwayVR
         // --- miscellaneous ---
         internal static ConfigEntry<KeyCode> CfgRecenterKey;
         internal static ConfigEntry<KeyCode> CfgDiagKey;
-        internal static ConfigEntry<KeyCode> CfgToggleEffectsKey;
-        internal static ConfigEntry<KeyCode> CfgStepLayerKey;
-        internal static ConfigEntry<KeyCode> CfgResetLayerKey;
-        internal static ConfigEntry<KeyCode> CfgStepCanvasKey;
         internal static ConfigEntry<bool> CfgVerbose;
-        internal static ConfigEntry<bool> CfgProbe;
         internal static ConfigEntry<float> CfgAxisThreshold;
         internal static ConfigEntry<bool> CfgTraceInput;
         internal static ConfigEntry<bool> CfgDialogCapture;
         internal static ConfigEntry<float> CfgDialogDistance;
         internal static ConfigEntry<float> CfgDialogWidth;
-        internal static ConfigEntry<float> CfgDialogFollowSpeed;
         internal static ConfigEntry<bool> CfgHudAlwaysVisible;
         internal static ConfigEntry<bool> CfgVrFade;
         internal static ConfigEntry<float> CfgFadeDistance;
-        internal static ConfigEntry<float> CfgFadeDuration;
-        internal static ConfigEntry<float> CfgFadeHold;
         internal static ConfigEntry<bool> CfgFadeOnCharacterSwap;
         internal static ConfigEntry<float> CfgCharacterFadeDuration;
         internal static ConfigEntry<bool> CfgGrenadeInHand;
@@ -103,7 +84,6 @@ namespace AwayVR
         internal static ConfigEntry<float> CfgGrenadeScale;
         internal static ConfigEntry<float> CfgGrenadeOffX, CfgGrenadeOffY, CfgGrenadeOffZ;
         internal static ConfigEntry<bool> CfgGrenadeGesture;
-        internal static ConfigEntry<string> CfgGrenadeGestureAxis;
         internal static ConfigEntry<bool> CfgGrenadeAimFromMotion;
         internal static ConfigEntry<float> CfgGrenadeMotionMin;
         internal static ConfigEntry<float> CfgGrenadeThrowPitch;
@@ -113,7 +93,6 @@ namespace AwayVR
         internal static ConfigEntry<float> CfgStickThreshold;
         internal static ConfigEntry<float> CfgGrenadeArmLevel, CfgGrenadeReleaseLevel;
         internal static ConfigEntry<float> CfgGrenadeArmScale;
-        internal static ConfigEntry<bool> CfgBlackDefaultSky;
         internal static ConfigEntry<float> CfgHudSceneReminder;
         internal static ConfigEntry<float> CfgHudSceneDelay;
         internal static ConfigEntry<float> CfgHudFlashDuration;
@@ -140,10 +119,6 @@ namespace AwayVR
                 "Physically walking moves the character, with collisions. Tracking stays centred "
                 + "on the character's eye height: this game has a fixed height, and floor-based "
                 + "tracking does not fit it.");
-            CfgRoomScaleDeadzone = Config.Bind("01 - XR", "RoomScaleDeadzone", 0.0005f,
-                new ConfigDescription("Smallest movement taken into account per frame, in metres. "
-                    + "A plain noise floor: a large value produces visible jumps.",
-                    new AcceptableValueRange<float>(0.0001f, 0.02f)));
 
             CfgBlockCameraOnWalls = Config.Bind("01 - XR", "BlockCameraOnWalls", true,
                 "The view is blocked by walls along with the body, and the collision capsule stays "
@@ -157,19 +132,7 @@ namespace AwayVR
                     + "distance, which is precisely what makes you feel taller or shorter. "
                     + ">1 = you feel taller.",
                     new AcceptableValueRange<float>(0.3f, 3f)));
-            CfgNearClip = Config.Bind("02 - Camera", "NearClipPlane", 0.05f,
-                "Near clip plane in VR. Too large and hands or weapons get cut off.");
-            CfgHmdDrivesPitch = Config.Bind("02 - Camera", "HmdDrivesPitch", true,
-                "The headset drives pitch and roll; the mouse only turns the body (yaw).");
-            CfgDisableHeadBob = Config.Bind("02 - Camera", "DisableHeadBob", true,
-                "Disables the walking head bob, which causes motion sickness and fights the tracking.");
-            CfgWeaponsCamera = Config.Bind("02 - Camera", "WeaponsCameraMode", WeaponsCameraMode.Merge,
-                "Keep = leave the weapons camera as an overlay. Merge = fold its layers into the main camera. Disable = hide the weapons.");
 
-            CfgDisabledEffects = Config.Bind("03 - Effects", "DisabledEffects",
-                "",
-                "Comma-separated names of components to switch off on the cameras in VR. Empty by "
-                + "default: the F11 test showed that none of this game's effects breaks stereo.");
 
             CfgDisableBloom = Config.Bind("03 - Effects", "DisableBloom", false,
                 "Switches off the game's bloom. It lives on the weapons camera together "
@@ -196,15 +159,7 @@ namespace AwayVR
                     + "of that threshold before another can fire.",
                     new AcceptableValueRange<float>(0.1f, 0.95f)));
 
-            CfgPlayerBody = Config.Bind("032 - Player body", "PlayerBodyMode", PlayerBodyMode.ShadowsOnly,
-                "The player mesh sits outside the frustum in 2D, but the headset moves the viewpoint "
-                + "and you see it from inside. ShadowsOnly = invisible but still casts its "
-                + "shadow. Hide = layer removed entirely. Keep = original state.");
 
-            CfgHiddenLayers = Config.Bind("033 - Layers", "HiddenLayers", "",
-                "Comma-separated layers (name or index) removed from the main camera's culling mask "
-                + "in VR. Empty by default; an escape hatch for when stray geometry is found "
-                + "through bisection (StepLayer key).");
 
             CfgWeaponAttach = Config.Bind("034 - Weapons", "AttachTo", WeaponAttachMode.Right,
                 "Hand to attach the viewmodel to. Off = leaves the weapons on the camera.");
@@ -222,10 +177,6 @@ namespace AwayVR
             CfgWeaponOffY = Config.Bind("034 - Weapons", "PositionY", 0.405f, new ConfigDescription("", new AcceptableValueRange<float>(-2.5f, 2.5f)));
             CfgWeaponOffZ = Config.Bind("034 - Weapons", "PositionZ", -0.025f, new ConfigDescription("", new AcceptableValueRange<float>(-2.5f, 2.5f)));
 
-            CfgWorldLockCameraChildren = Config.Bind("035 - HUD", "WorldLockCameraChildren", true,
-                "Detaches whatever the game parents to the camera (the menu video quad, panels) and "
-                + "reattaches it to the rig. Those objects then stop following the head, which "
-                + "is essential for comfort on the title screen.");
 
 
             CfgSwingToAttack = Config.Bind("034 - Weapons", "SwingToAttack", true,
@@ -240,8 +191,6 @@ namespace AwayVR
                 new ConfigDescription("Minimum delay between two swings, in seconds.",
                     new AcceptableValueRange<float>(0.05f, 2f)));
 
-            CfgHiddenCanvases = Config.Bind("035 - HUD", "HiddenCanvases", "",
-                "Comma-separated names of canvases to switch off. Managed from the in-game menu.");
 
 
             CfgHudDistance = Config.Bind("035 - HUD", "Distance", 2.0f,
@@ -260,9 +209,6 @@ namespace AwayVR
 
             CfgMenuKey = Config.Bind("036 - Menu", "MenuKey", KeyCode.F1,
                 "Opens/closes the menu from the keyboard. In VR: click both sticks at once.");
-            CfgMenuScale = Config.Bind("036 - Menu", "Scale", 1.6f,
-                new ConfigDescription("Menu scale on the desktop mirror only.",
-                    new AcceptableValueRange<float>(0.5f, 4f)));
             CfgMenuDistance = Config.Bind("036 - Menu", "Distance", 1.4f,
                 new ConfigDescription("Distance of the menu panel in VR, in metres.",
                     new AcceptableValueRange<float>(0.4f, 5f)));
@@ -275,19 +221,7 @@ namespace AwayVR
 
             CfgRecenterKey = Config.Bind("04 - Keys", "Recenter", KeyCode.F9, "Recentres the view.");
             CfgDiagKey = Config.Bind("04 - Keys", "Diagnostics", KeyCode.F10, "Writes a scene report to the log.");
-            CfgStepLayerKey = Config.Bind("04 - Keys", "StepLayer", KeyCode.F7,
-                "Bisection: hides one more layer on the main camera with each press, restoring the "
-                + "previous one. Used to put a name on stray geometry.");
-            CfgStepCanvasKey = Config.Bind("04 - Keys", "StepCanvas", KeyCode.F5,
-                "Bisection: hides one more canvas with each press, restoring the previous one. Used "
-                + "to identify a stray panel without going through the menu.");
-            CfgResetLayerKey = Config.Bind("04 - Keys", "ResetLayers", KeyCode.F6,
-                "Restores the original culling mask.");
-            CfgToggleEffectsKey = Config.Bind("04 - Keys", "ToggleAllEffects", KeyCode.F11,
-                "Toggles ALL camera effects, OnRenderImage and CommandBuffer alike. Used to isolate whichever one breaks the image.");
             CfgVerbose = Config.Bind("04 - Keys", "Verbose", true, "Verbose logging.");
-            CfgProbe = Config.Bind("04 - Keys", "ControllerProbe", false,
-                "Logs controller buttons, device by device.");
             CfgDialogCapture = Config.Bind("035 - HUD", "DialogCapture", true,
                 "Captures the IMGUI drawing of the dialogues, invisible in VR, and shows it on a "
                 + "panel in front of the player.");
@@ -297,9 +231,6 @@ namespace AwayVR
             CfgDialogWidth = Config.Bind("035 - HUD", "DialogWidth", 2.00f,
                 new ConfigDescription("Width of the dialogue panel, in metres.",
                     new AcceptableValueRange<float>(0.5f, 8f)));
-            CfgBlackDefaultSky = Config.Bind("02 - Camera", "BlackDefaultSkybox", true,
-                "Replaces Unity's default skybox with a black background. Screens with no scenery, "
-                + "such as the rewards screen, otherwise leave an empty blue sky in VR.");
             CfgHudSceneDelay = Config.Bind("035 - HUD", "HudSceneDelay", 2.0f,
                 new ConfigDescription(
                     "How long to wait after a scene comes up before showing the HUD. The view "
@@ -319,14 +250,6 @@ namespace AwayVR
                     "Distance of the fade surface, in metres. Close enough to cover the view, "
                     + "far enough not to clip through the near plane.",
                     new AcceptableValueRange<float>(0.15f, 2f)));
-            CfgFadeDuration = Config.Bind("035 - HUD", "FadeDuration", 0.60f,
-                new ConfigDescription("How long the fade out into the scene takes, in seconds.",
-                    new AcceptableValueRange<float>(0.05f, 5f)));
-            CfgFadeHold = Config.Bind("035 - HUD", "FadeHold", 0.25f,
-                new ConfigDescription(
-                    "How long the view stays fully covered after a scene comes up, before "
-                    + "the fade out begins. Covers the frames the game spends settling.",
-                    new AcceptableValueRange<float>(0f, 5f)));
             CfgFadeOnCharacterSwap = Config.Bind("035 - HUD", "FadeOnCharacterSwap", true,
                 "Punctuates a character swap with a short fade.");
             CfgCharacterFadeDuration = Config.Bind("035 - HUD", "CharacterFadeDuration", 0.35f,
@@ -356,10 +279,7 @@ namespace AwayVR
                     new AcceptableValueRange<float>(-0.5f, 0.5f)));
             CfgGrenadeGesture = Config.Bind("034 - Weapons", "GrenadeGesture", true,
                 "Squeeze the left trigger fully to arm the grenade, release it fully to throw. "
-                + "Off, the trigger throws on the press — which fires at the lightest touch.");
-            CfgGrenadeGestureAxis = Config.Bind("034 - Weapons", "GrenadeGestureAxis",
-                "AwayVR_GripL",
-                "Analog axis the arm-and-throw gesture reads.");
+                + "Off, the trigger throws on the press â€” which fires at the lightest touch.");
             CfgGrenadeAimFromMotion = Config.Bind("034 - Weapons", "GrenadeAimFromMotion", true,
                 "Throw where the hand is actually moving. Below the speed threshold the "
                 + "grenade goes where the hand points instead, so a still release still aims.");
@@ -371,15 +291,15 @@ namespace AwayVR
                 true,
                 "Throw as hard as you actually threw. The game's own force is kept as the "
                 + "reference and multiplied, so the weapon's balance is unchanged.");
-            CfgGrenadeRefSpeed = Config.Bind("034 - Weapons", "GrenadeRefSpeed", 3.0f,
+            CfgGrenadeRefSpeed = Config.Bind("034 - Weapons", "GrenadeRefSpeed", 6.0f,
                 new ConfigDescription("Hand speed that reproduces the game's original throw, "
                     + "in metres per second. Lower it if grenades feel heavy.",
                     new AcceptableValueRange<float>(0.5f, 10f)));
-            CfgGrenadePowerMin = Config.Bind("034 - Weapons", "GrenadePowerMin", 0.35f,
+            CfgGrenadePowerMin = Config.Bind("034 - Weapons", "GrenadePowerMin", 0.25f,
                 new ConfigDescription("Weakest throw, as a fraction of the game's force. Never "
                     + "zero: a grenade let go at rest must still leave the hand.",
                     new AcceptableValueRange<float>(0.05f, 1f)));
-            CfgGrenadePowerMax = Config.Bind("034 - Weapons", "GrenadePowerMax", 2.0f,
+            CfgGrenadePowerMax = Config.Bind("034 - Weapons", "GrenadePowerMax", 1.4f,
                 new ConfigDescription("Hardest throw, as a fraction of the game's force.",
                     new AcceptableValueRange<float>(1f, 5f)));
             CfgGrenadeThrowPitch = Config.Bind("034 - Weapons", "GrenadeThrowPitch", 20f,
@@ -406,11 +326,6 @@ namespace AwayVR
             CfgHudFadeSpeed = Config.Bind("035 - HUD", "HudFadeSpeed", 6.0f,
                 new ConfigDescription("Fade-in and fade-out speed.",
                     new AcceptableValueRange<float>(1f, 30f)));
-            CfgDialogFollowSpeed = Config.Bind("035 - HUD", "DialogFollowSpeed", 4.0f,
-                new ConfigDescription(
-                    "Follow speed of the dialogue panel. Low = heavily damped, catching up with the head "
-                    + "slowly. 0 = frozen where it appeared.",
-                    new AcceptableValueRange<float>(0f, 20f)));
             CfgTraceInput = Config.Bind("05 - VR bindings", "TraceInput", true,
                 "Logs every VR action that changes state, with its binding. Used to tell an input "
                 + "that never reports apart from an action the game ignores.");
@@ -448,12 +363,5 @@ namespace AwayVR
 
             Log.LogInfo("AwayVR 0.1.0 initialise.");
         }
-    }
-
-    public enum WeaponsCameraMode
-    {
-        Keep,
-        Merge,
-        Disable
     }
 }

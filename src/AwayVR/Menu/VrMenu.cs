@@ -50,6 +50,12 @@ namespace AwayVR.Menu
         {
             _items.Clear();
 
+            // Deliberately a SHORT list. Every setting still exists and is still read; what
+            // was taken out of the menu is what gets set once and never touched again — the
+            // weapon's position in the hand, the grenade's offsets, the arming thresholds.
+            // Those live in the config file, where they belong: a menu you scroll through
+            // hides the four or five settings that are genuinely worth changing.
+
             _items.Add(new SectionItem("Controls"));
             _items.Add(new EnumItem("Turn mode", Plugin.CfgTurnMode,
                 new[] { "Snap", "Smooth" }));
@@ -58,80 +64,33 @@ namespace AwayVR.Menu
             _items.Add(new FloatItem("Turn speed", Plugin.CfgSmoothTurnSpeed,
                 20f, 400f, 12f, 220f, 1f, "0", " deg/s"));
 
-            _items.Add(new BoolItem("Room-scale walking", Plugin.CfgRoomScaleMove));
-            _items.Add(new BoolItem("Block view at walls", Plugin.CfgBlockCameraOnWalls));
-
             _items.Add(new SectionItem("Weapon"));
-            _items.Add(new EnumItem("Hand", Plugin.CfgWeaponAttach,
-                new[] { "None", "Right", "Left" }));
-            _items.Add(new EnumItem("Grip point", Plugin.CfgWeaponAnchor,
-                new[] { "Hand", "Base", "Tip", "Center", "Pivot" }));
-            _items.Add(new FloatItem("Scale", Plugin.CfgWeaponScale,
-                0.05f, 2f, 0.02f, 0.6f, 0.01f, "0.00", "x"));
-            _items.Add(new FloatItem("Position X (side)", Plugin.CfgWeaponOffX,
-                -2.5f, 2.5f, 0.02f, 1.2f, 0.005f, "0.000", " m"));
-            _items.Add(new FloatItem("Position Y (height)", Plugin.CfgWeaponOffY,
-                -2.5f, 2.5f, 0.02f, 1.2f, 0.005f, "0.000", " m"));
-            _items.Add(new FloatItem("Position Z (depth)", Plugin.CfgWeaponOffZ,
-                -2.5f, 2.5f, 0.02f, 1.2f, 0.005f, "0.000", " m"));
-            _items.Add(new BoolItem("Swing to attack", Plugin.CfgSwingToAttack));
-            _items.Add(new BoolItem("Grenade in hand", Plugin.CfgGrenadeInHand));
-            _items.Add(new BoolItem("Throw from hand", Plugin.CfgGrenadeFromHand));
-            _items.Add(new BoolItem("Throw by release", Plugin.CfgGrenadeGesture));
-            _items.Add(new FloatItem("Arm at", Plugin.CfgGrenadeArmLevel,
-                0.40f, 1.00f, 0.02f, 0.5f, 0.01f, "0.00", ""));
-            _items.Add(new FloatItem("Release at", Plugin.CfgGrenadeReleaseLevel,
-                0.00f, 0.50f, 0.02f, 0.5f, 0.01f, "0.00", ""));
-            _items.Add(new FloatItem("Armed scale", Plugin.CfgGrenadeArmScale,
-                1.00f, 2.00f, 0.02f, 0.5f, 0.01f, "0.00", "x"));
-            _items.Add(new BoolItem("Aim throw from motion", Plugin.CfgGrenadeAimFromMotion));
-            _items.Add(new FloatItem("Throw motion min", Plugin.CfgGrenadeMotionMin,
-                0.20f, 6.00f, 0.05f, 1.0f, 0.05f, "0.00", " m/s"));
-            _items.Add(new FloatItem("Throw pitch", Plugin.CfgGrenadeThrowPitch,
-                0f, 60f, 1f, 20f, 0.5f, "0", " deg"));
+            _items.Add(new FloatItem("Swing threshold", Plugin.CfgSwingThreshold,
+                0.3f, 6f, 0.08f, 2.0f, 0.05f, "0.00", " m/s"));
             _items.Add(new BoolItem("Power from motion", Plugin.CfgGrenadePowerFromMotion));
-            _items.Add(new FloatItem("Throw reference speed", Plugin.CfgGrenadeRefSpeed,
-                0.50f, 10.00f, 0.10f, 1.0f, 0.05f, "0.00", " m/s"));
             _items.Add(new FloatItem("Throw power min", Plugin.CfgGrenadePowerMin,
                 0.05f, 1.00f, 0.02f, 0.5f, 0.01f, "0.00", "x"));
             _items.Add(new FloatItem("Throw power max", Plugin.CfgGrenadePowerMax,
                 1.00f, 5.00f, 0.05f, 1.0f, 0.02f, "0.00", "x"));
-            _items.Add(new FloatItem("Grenade scale", Plugin.CfgGrenadeScale,
-                0.05f, 3.00f, 0.02f, 0.8f, 0.01f, "0.00", "x"));
-            _items.Add(new FloatItem("Grenade X", Plugin.CfgGrenadeOffX,
-                -0.50f, 0.50f, 0.01f, 0.3f, 0.005f, "0.000", " m"));
-            _items.Add(new FloatItem("Grenade Y", Plugin.CfgGrenadeOffY,
-                -0.50f, 0.50f, 0.01f, 0.3f, 0.005f, "0.000", " m"));
-            _items.Add(new FloatItem("Grenade Z", Plugin.CfgGrenadeOffZ,
-                -0.50f, 0.50f, 0.01f, 0.3f, 0.005f, "0.000", " m"));
-            _items.Add(new FloatItem("Swing threshold", Plugin.CfgSwingThreshold,
-                0.3f, 6f, 0.08f, 2.0f, 0.05f, "0.00", " m/s"));
 
             _items.Add(new SectionItem("Graphics"));
             _items.Add(new FloatItem("World scale", Plugin.CfgWorldScale,
                 0.30f, 3.00f, 0.06f, 0.8f, 0.01f, "0.00", "x"));
             _items.Add(new BoolItem("Disable bloom", Plugin.CfgDisableBloom));
             _items.Add(new BoolItem("Disable colour grading", Plugin.CfgDisableColorGrading));
-            _items.Add(new LayerComboItem("Hidden layers"));
 
             _items.Add(new SectionItem("Interface"));
             _items.Add(new BoolItem("HUD always visible", Plugin.CfgHudAlwaysVisible));
-            _items.Add(new BoolItem("VR fade", Plugin.CfgVrFade));
-            _items.Add(new BoolItem("Fade on character swap", Plugin.CfgFadeOnCharacterSwap));
             _items.Add(new FloatItem("HUD size", Plugin.CfgHudWidth,
                 0.50f, 6.00f, 0.10f, 1.5f, 0.05f, "0.00", " m"));
             _items.Add(new FloatItem("HUD distance", Plugin.CfgHudDistance,
                 0.60f, 6.00f, 0.10f, 1.5f, 0.05f, "0.00", " m"));
-            _items.Add(new BoolItem("Unlock from head", Plugin.CfgWorldLockCameraChildren));
-            _items.Add(new CanvasComboItem("Hidden canvases"));
 
             _items.Add(new SectionItem("Player"));
             _items.Add(new FloatItem("Player height", Plugin.CfgHeightOffset,
                 -1.20f, 1.20f, 0.05f, 0.6f, 0.01f, "0.00", " m"));
 
             _items.Add(new SectionItem("System"));
-            _items.Add(new BindingsItem("Controller bindings"));
-            _items.Add(new BoolItem("Controller probe", Plugin.CfgProbe));
             _items.Add(new ActionItem("Reset all", "left/right", Reinitialiser));
         }
 
@@ -224,8 +183,6 @@ namespace AwayVR.Menu
         {
             switch (_page)
             {
-                case MenuPage.Layers: return HiddenLayers.Named().Count;
-                case MenuPage.Canvases: return CanvasTools.RootCanvasNames().Count;
                 case MenuPage.Bindings: return VrBindings.Labels.Length;
                 default: return _items.Count;
             }
@@ -344,26 +301,10 @@ namespace AwayVR.Menu
 
         private void ToggleOnSubPage()
         {
-            if (_page == MenuPage.Layers)
-            {
-                var named = HiddenLayers.Named();
-                if (_selected >= 0 && _selected < named.Count)
-                    HiddenLayers.Toggle(named[_selected]);
-            }
-            else if (_page == MenuPage.Bindings)
+            if (_page == MenuPage.Bindings)
             {
                 // Arm the capture; the next input pressed will be recorded.
                 _capture = _selected;
-            }
-            else if (_page == MenuPage.Canvases)
-            {
-                var noms = CanvasTools.RootCanvasNames();
-                if (_selected >= 0 && _selected < noms.Count)
-                {
-                    HiddenCanvases.Toggle(noms[_selected]);
-                    var mgr = VrManager.Instance;
-                    if (mgr != null) mgr.ReapplyScene();
-                }
             }
         }
 
@@ -428,18 +369,6 @@ namespace AwayVR.Menu
 
             switch (_page)
             {
-                case MenuPage.Layers:
-                    foreach (var layer in HiddenLayers.Named())
-                        _rows.Add(new RowData
-                        {
-                            Label = LayerMask.LayerToName(layer),
-                            Value = HiddenLayers.IsHidden(layer)
-                                ? "<b>hidden</b>" : "<color=#5d6b80>visible</color>"
-                        });
-                    _ui.SetHeader("Hidden layers",
-                        "left/right  toggle       right stick click  back");
-                    break;
-
                 case MenuPage.Bindings:
                     for (int i = 0; i < VrBindings.Labels.Length; i++)
                         _rows.Add(new RowData
@@ -453,18 +382,6 @@ namespace AwayVR.Menu
                         _capture >= 0
                             ? "press the button you want for this action"
                             : "left/right  assign       right stick click  back");
-                    break;
-
-                case MenuPage.Canvases:
-                    foreach (var nom in CanvasTools.RootCanvasNames())
-                        _rows.Add(new RowData
-                        {
-                            Label = nom,
-                            Value = HiddenCanvases.IsHidden(nom)
-                                ? "<b>hidden</b>" : "<color=#5d6b80>visible</color>"
-                        });
-                    _ui.SetHeader("Scene canvases",
-                        "left/right  toggle       right stick click  back");
                     break;
 
                 default:

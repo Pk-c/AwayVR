@@ -72,15 +72,6 @@ namespace AwayVR
 
                 var orig = Saved[canvas];
 
-                // Explicit hiding: the manual escape hatch for when a stray canvas cannot be
-                // identified automatically. Takes priority over everything else.
-                if (Menu.HiddenCanvases.IsHidden(canvas.name))
-                {
-                    Restore(canvas, orig);
-                    canvas.enabled = false;
-                    continue;
-                }
-
                 ToTexture(canvas, orig);
                 n++;
             }
@@ -141,50 +132,6 @@ namespace AwayVR
             var rt = c.transform as RectTransform;
             if (rt != null && o.SizeDelta != Vector2.zero) rt.sizeDelta = o.SizeDelta;
             c.enabled = o.Enabled;
-        }
-
-        // ------------------------------------------------------------------
-        // Manual selection of canvases to hide
-        // ------------------------------------------------------------------
-
-        private static int _step = -1;
-        private static List<string> _stepNames;
-
-        /// <summary>
-        /// Hides one more canvas on each call, restoring the previous one. Faster than
-        /// navigating the menu when hunting down a stray panel.
-        /// </summary>
-        public static void StepHide()
-        {
-            if (_step < 0) _stepNames = RootCanvasNames();
-
-            _step++;
-            if (_stepNames == null || _step >= _stepNames.Count)
-            {
-                _step = -1;
-                _stepNames = null;
-                Plugin.CfgHiddenCanvases.Value = "";
-                Plugin.Log.LogInfo("Canvas bisection finished: all restored.");
-                return;
-            }
-
-            Plugin.CfgHiddenCanvases.Value = _stepNames[_step];
-            Plugin.Log.LogInfo(string.Format("Canvas hidden: '{0}'   ({1}/{2})",
-                _stepNames[_step], _step + 1, _stepNames.Count));
-        }
-
-        /// <summary>Names of the scene's root canvases, for the selection page.</summary>
-        public static List<string> RootCanvasNames()
-        {
-            var names = new List<string>();
-            foreach (var c in Object.FindObjectsOfType<Canvas>())
-            {
-                if (c == null || !c.isRootCanvas) continue;
-                if (c.name.StartsWith("AwayVR_")) continue;
-                if (!names.Contains(c.name)) names.Add(c.name);
-            }
-            names.Sort(System.StringComparer.OrdinalIgnoreCase);
-            return names;
         }
 
         /// <summary>
