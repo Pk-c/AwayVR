@@ -203,6 +203,7 @@ namespace AwayVR
                 else sb.AppendLine("  JourneyDiary : absent from the scene");
             }
 
+            DumpGrenade(sb);
             DumpVideo(sb);
             DumpDialogue(sb);
 
@@ -291,6 +292,52 @@ namespace AwayVR
         /// but a VideoPlayer drawing straight into the camera or into its own texture does
         /// not. We look at what is actually there before attempting anything.
         /// </summary>
+        /// <summary>
+        /// Why the held grenade is or is not showing. Four things have to line up, and
+        /// without this there is no telling which one failed.
+        /// </summary>
+        private static void DumpGrenade(StringBuilder sb)
+        {
+            sb.AppendLine("-- Grenade --");
+
+            var secondary = Object.FindObjectOfType<weapons_secondary>();
+            sb.AppendLine("  weapons_secondary : "
+                          + (secondary != null ? Hierarchy.Path(secondary.transform) : "ABSENT"));
+
+            if (secondary != null)
+            {
+                var f = HarmonyLib.AccessTools.Field(typeof(weapons_secondary), "projectile");
+                var prefab = f != null ? f.GetValue(secondary) as GameObject : null;
+                sb.AppendLine("  projectile prefab : " + (prefab != null ? prefab.name : "NULL"));
+                if (prefab != null)
+                {
+                    int meshes = 0;
+                    foreach (var mf in prefab.GetComponentsInChildren<MeshFilter>(true))
+                        if (mf != null && mf.sharedMesh != null) meshes++;
+                    sb.AppendLine("  meshes in prefab  : " + meshes
+                                  + (meshes == 0 ? "   <- nothing to copy" : ""));
+                }
+            }
+
+            var tBasics = HarmonyLib.AccessTools.TypeByName("basics");
+            var fCount = tBasics != null ? HarmonyLib.AccessTools.Field(tBasics, "grenades") : null;
+            sb.AppendLine("  basics.grenades   : "
+                          + (fCount != null ? fCount.GetValue(null).ToString() : "field not found"));
+
+            var hand = Hands.Get(HandSide.Left);
+            sb.AppendLine("  left hand         : "
+                          + (hand != null ? Hierarchy.Path(hand) : "ABSENT"));
+
+            if (hand != null)
+            {
+                var held = hand.Find("AwayVR_HeldGrenade");
+                sb.AppendLine("  held model        : "
+                              + (held == null ? "not built"
+                                 : "built, active=" + held.gameObject.activeInHierarchy
+                                   + ", scale=" + held.localScale.x.ToString("0.00")));
+            }
+        }
+
         private static void DumpVideo(StringBuilder sb)
         {
             sb.AppendLine("-- Video --");

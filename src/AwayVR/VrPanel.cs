@@ -17,10 +17,6 @@ namespace AwayVR
         private RawImage _image;
         private RectTransform _rect;
 
-        /// <summary>How far the panel currently lags behind the gaze, in degrees.</summary>
-        private float _lag;
-        private float _previousYaw;
-        private bool _initialised;
 
         public void Ensure(string name, int sortingOrder)
         {
@@ -67,20 +63,22 @@ namespace AwayVR
         }
 
         /// <summary>
-        /// Places the panel in front of the gaze, with a damped follow.
+        /// Places the panel in front of the gaze, level, with a damped follow.
         ///
-        /// Everything happens in LOCAL coordinates, under the camera that renders the panel.
-        /// Placing it in world coordinates relative to the main camera required the two
-        /// poses to match exactly — Unity re-latches the head pose just before rendering,
-        /// and the slightest discrepancy shifted the panel on screen. As a child of its own
-        /// camera it is framed correctly whatever that pose turns out to be.
+        /// The pose is written in WORLD space even though the panel is a child of the camera
+        /// that renders it. Both matter, for different reasons:
         ///
-        /// The damping therefore acts on a simple lag angle: the head turns, the panel falls
-        /// behind, then catches back up to centre. Only yaw is followed; pitch and roll
-        /// would tip the panel over with the head.
+        ///  - being a child of its own render camera means the framing is right whatever
+        ///    pose Unity re-latches just before drawing, which is what used to shift the
+        ///    panel on screen when we placed it relative to the main camera instead;
+        ///  - writing a world rotation cancels the parent's pitch and roll. Inheriting the
+        ///    full head pose made the panel tip over as soon as you leaned your head, and
+        ///    a heads-up display has no business doing that.
+        ///
+        /// The yaw and its damping come from GazeFollow, shared with the game's virtual
+        /// screens so the two can never drift apart.
         /// </summary>
-        public void Place(Camera cam, float distance, float width, float speed,
-                          int pixelWidth, int pixelHeight)
+        public void Place(float distance, float width, int pixelWidth, int pixelHeight)
         {
             var parent = PanelOverlay.Anchor;
             if (_canvas == null || parent == null) return;
@@ -88,42 +86,17 @@ namespace AwayVR
             var panel = (RectTransform)_canvas.transform;
             if (panel.parent != parent) panel.SetParent(parent, false);
 
-            float yaw = parent.eulerAngles.y;
-            if (!_initialised)
-            {
-                _previousYaw = yaw;
-                _lag = 0f;
-                _initialised = true;
-            }
-
-            // Lag built up by head rotation, then absorbed. Mathf.DeltaAngle handles the
-            // wrap through 360 degrees, which would otherwise cause a jump.
-            _lag -= Mathf.DeltaAngle(_previousYaw, yaw);
-            _previousYaw = yaw;
-
-            // Zero speed means the panel is LOCKED to the head, with no lag at all.
-            if (speed <= 0f)
-            {
-                _lag = 0f;
-            }
-            else
-            {
-                float k = 1f - Mathf.Exp(-speed * Mathf.Max(Time.unscaledDeltaTime, 0.0001f));
-                _lag *= 1f - k;
-                _lag = Mathf.Clamp(_lag, -90f, 90f);
-            }
 
             panel.sizeDelta = new Vector2(Mathf.Max(pixelWidth, 1), Mathf.Max(pixelHeight, 1));
             float scale = width / Mathf.Max(pixelWidth, 1);
             panel.localScale = new Vector3(scale, scale, scale);
 
-            var rot = Quaternion.Euler(0f, _lag, 0f);
-            panel.localRotation = rot;
-            panel.localPosition = rot * new Vector3(0f, 0f, distance);
+            panel.rotation = GazeFollow.Rotation;
+            panel.position = GazeFollow.PointAt(distance);
         }
 
         /// <summary>Snap back into place as the panel appears, instead of sliding in.</summary>
-        public void Recentre() { _initialised = false; }
+        public void Recentre() { GazeFollow.Recentre(); }
 
         public void Destroy()
         {
@@ -131,7 +104,6 @@ namespace AwayVR
             _canvas = null;
             _image = null;
             _rect = null;
-            _initialised = false;
         }
     }
 }

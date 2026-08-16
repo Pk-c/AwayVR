@@ -194,13 +194,8 @@ namespace AwayVR
 
             _panel.SetTexture(_rt, _alpha);
 
-            var view = VrManager.MainCamera;
-            if (view == null) return;
-
-            _panel.Place(view,
-                         Plugin.CfgHudDistance.Value,
+            _panel.Place(Plugin.CfgHudDistance.Value,
                          Plugin.CfgHudWidth.Value,
-                         Plugin.CfgHudFollowSpeed.Value,
                          _rt.width, _rt.height);
         }
 

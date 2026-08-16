@@ -50,9 +50,6 @@ namespace AwayVR
 
         /// <summary>Shared anchor for the virtual screens, driven like the mod's panels.</summary>
         private static Transform _screenAnchor;
-        private static float _screenLag;
-        private static float _screenPreviousYaw;
-        private static bool _screensInitialised;
 
         private static void Log(string m) => Plugin.Log.LogInfo(m);
         private static void Warn(string m) => Plugin.Log.LogWarning(m);
@@ -189,6 +186,8 @@ namespace AwayVR
             if (!VrActive) return;
             Weapons.Forget();
             PlayerBody.Forget();
+            VrFade.OnSceneLoaded();
+            Grenades.Forget();
             RoomScale.Forget();
             _aNormaliser.Clear();
             _screens.Clear();
@@ -363,49 +362,27 @@ namespace AwayVR
             var go = new GameObject("AwayVR_ScreenAnchor");
             _screenAnchor = go.transform;
             _screenAnchor.SetParent(Rig, false);
-            _screensInitialised = false;
             return _screenAnchor;
         }
 
         /// <summary>
-        /// Makes the virtual screens follow just like the mod's panels.
+        /// Makes the virtual screens follow exactly like the HUD panel.
         ///
         /// The title poster and the menu have to stay together: they are designed to be seen
-        /// as one. So we give them the same damped lag as the HUD, and on yaw alone — pitch
-        /// and roll would tip them over with the head.
+        /// as one. So they do not merely use similar settings, they share the SAME source —
+        /// GazeFollow for the orientation, and the HUD's own distance and width for the
+        /// geometry. Two independent follows, however carefully tuned, always ended up a few
+        /// degrees apart, and that is immediately visible.
         /// </summary>
         private static void FollowVirtualScreens()
         {
             if (_screenAnchor == null || MainCamera == null || Rig == null) return;
 
-            var camLocal = Rig.InverseTransformPoint(MainCamera.transform.position);
-            var avant = Rig.InverseTransformDirection(MainCamera.transform.forward);
-            avant.y = 0f;
-            if (avant.sqrMagnitude < 1e-6f) avant = Vector3.forward;
-            avant.Normalize();
-
-            float lacet = Quaternion.LookRotation(avant).eulerAngles.y;
-            if (!_screensInitialised)
-            {
-                _screenPreviousYaw = lacet;
-                _screenLag = 0f;
-                _screensInitialised = true;
-            }
-
-            _screenLag -= Mathf.DeltaAngle(_screenPreviousYaw, lacet);
-            _screenPreviousYaw = lacet;
-
-            float v = Plugin.CfgHudFollowSpeed.Value;
-            if (v <= 0f) _screenLag = 0f;
-            else
-            {
-                float k = 1f - Mathf.Exp(-v * Mathf.Max(Time.unscaledDeltaTime, 0.0001f));
-                _screenLag *= 1f - k;
-                _screenLag = Mathf.Clamp(_screenLag, -90f, 90f);
-            }
-
-            _screenAnchor.localRotation = Quaternion.Euler(0f, lacet + _screenLag, 0f);
-            _screenAnchor.localPosition = camLocal;
+            // World pose taken straight from the shared follow, then converted into the
+            // rig's space: the anchor lives under the rig, but its placement must not
+            // depend on the rig's own orientation.
+            _screenAnchor.position = GazeFollow.Origin;
+            _screenAnchor.rotation = GazeFollow.Rotation;
         }
 
         private bool NormalizeIfFullscreen(Transform child, string name)
@@ -426,7 +403,9 @@ namespace AwayVR
                 _screens.Add(child);
             }
 
-            float k = Plugin.CfgScreenWidth.Value / w;
+            // Same width as the HUD panel, so poster and menu match by construction
+            // rather than by two settings that have to be kept in step by hand.
+            float k = Plugin.CfgHudWidth.Value / w;
             child.localScale = child.localScale * k;
             // We leave the rotation alone: a quad has a front face, and resetting it to
             // identity flips it over, which renders it invisible or white.
@@ -453,7 +432,7 @@ namespace AwayVR
 
             var target = Rig.TransformPoint(
                 new Vector3(camLocal.x, camLocal.y, camLocal.z)
-                + avant * Plugin.CfgScreenDistance.Value);
+                + avant * Plugin.CfgHudDistance.Value);
             child.position += target - b.center;
 
             // Attached to the shared anchor, world pose preserved: the offset measured here
@@ -463,8 +442,8 @@ namespace AwayVR
             child.SetParent(EnsureScreenAnchor(), true);
 
             Log("  virtual screen: " + name + "  largeur " + w.ToString("0.0")
-                + "m -> " + Plugin.CfgScreenWidth.Value.ToString("0.0")
-                + "m at " + Plugin.CfgScreenDistance.Value.ToString("0.0") + "m");
+                + "m -> " + Plugin.CfgHudWidth.Value.ToString("0.0")
+                + "m at " + Plugin.CfgHudDistance.Value.ToString("0.0") + "m");
             return true;
         }
 
@@ -591,19 +570,39 @@ namespace AwayVR
         private static Camera _weaponsCam;
 
         /// <summary>
-        /// The game switches the weapons camera back on by itself, notably on returning
-        /// from a cutscene. Since its layer is already merged into the main camera, it draws
-        /// the weapon a second time, flattened against the screen: the player then sees two
-        /// arms. So we keep switching it off continuously, not just at scene setup.
+        /// The weapons camera must draw NOTHING while still RENDERING. Those are two
+        /// different things, and the distinction matters here.
+        ///
+        /// Its layer is already merged into the main camera, so letting it draw shows the
+        /// weapon a second time, flattened against the screen — the double arm. But simply
+        /// disabling the camera turned out to cost far more than it fixed: the game hangs its
+        /// full-screen filters on this very camera —
+        ///
+        ///     GameObject.Find("Weapons_Camera").GetComponent&lt;CameraFilterPack_Blur_GaussianBlur&gt;()
+        ///
+        /// — and a disabled camera never renders, so its OnRenderImage never runs and every
+        /// one of those effects dies with it. That is why the character filters only appeared
+        /// after a cutscene: the game re-enabled the camera, and our sweep put it back to
+        /// sleep moments later.
+        ///
+        /// Emptying the culling mask instead gives us both: the camera still renders, so its
+        /// image effects still process the frame, but it has nothing of its own to draw.
         /// </summary>
-        private static void KeepWeaponsCameraOff()
+        private static void KeepWeaponsCameraBlind()
         {
             if (Plugin.CfgWeaponsCamera.Value != WeaponsCameraMode.Merge) return;
-            if (_weaponsCam == null || !_weaponsCam.enabled) return;
+            if (_weaponsCam == null) return;
 
-            _weaponsCam.enabled = false;
-            if (Plugin.CfgVerbose.Value)
-                Log("Weapons_Camera switched back on by the game: disabled again.");
+            // Re-enabled if the game switched it off: its effects need it running.
+            if (!_weaponsCam.enabled) _weaponsCam.enabled = true;
+
+            if (_weaponsCam.cullingMask != 0)
+            {
+                _weaponsCam.cullingMask = 0;
+                if (Plugin.CfgVerbose.Value)
+                    Log("Weapons_Camera given content again by the game: blinded once more.");
+            }
+
         }
 
         private void ApplyWeaponsCameraMode(Camera mainCam)
@@ -622,8 +621,11 @@ namespace AwayVR
                     // stereo that overlay is flattened onto the screen: we fold its layers
                     // into the main camera so the weapons live in the world.
                     mainCam.cullingMask |= wCam.cullingMask;
-                    wCam.enabled = false;
                     Log("  Weapons_Camera merged (mask added: 0x" + wCam.cullingMask.ToString("X") + ")");
+                    // Blinded, not disabled: see KeepWeaponsCameraBlind. The mask has to be
+                    // read before it is cleared, hence the order here.
+                    wCam.cullingMask = 0;
+                    wCam.enabled = true;
                     break;
 
                 case WeaponsCameraMode.Disable:
@@ -675,15 +677,21 @@ namespace AwayVR
             // their position from a pose one frame stale, and the panel shook on every head
             // movement — the same reason that forces the viewmodel correction to happen here
             // rather than in Update.
-            KeepWeaponsCameraOff();
+            KeepWeaponsCameraBlind();
 
             // Before placing the panels: they are positioned relative to the main camera
             // and rendered by the panel camera, and the two must coincide.
             PanelOverlay.Synchronise(MainCamera);
+
+            // Shared follow computed FIRST: the panels and the virtual screens both
+            // read it, so it has to be up to date before either is placed.
+            GazeFollow.Update(PanelOverlay.Anchor, Plugin.CfgHudFollowSpeed.Value);
             FollowVirtualScreens();
 
             ImguiCapture.Tick();
             HudCapture.Tick();
+            VrFade.Tick();
+            Grenades.Tick();
         }
 
         private void Update()

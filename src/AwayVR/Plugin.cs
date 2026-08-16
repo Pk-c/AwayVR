@@ -63,8 +63,6 @@ namespace AwayVR
 
         // --- HUD ---
         internal static ConfigEntry<bool> CfgWorldLockCameraChildren;
-        internal static ConfigEntry<float> CfgScreenDistance;
-        internal static ConfigEntry<float> CfgScreenWidth;
         internal static ConfigEntry<float> CfgHudDistance;
         internal static ConfigEntry<float> CfgHudWidth;
         internal static ConfigEntry<float> CfgHudFollowSpeed;
@@ -92,6 +90,16 @@ namespace AwayVR
         internal static ConfigEntry<float> CfgDialogWidth;
         internal static ConfigEntry<float> CfgDialogFollowSpeed;
         internal static ConfigEntry<bool> CfgHudAlwaysVisible;
+        internal static ConfigEntry<bool> CfgVrFade;
+        internal static ConfigEntry<float> CfgFadeDistance;
+        internal static ConfigEntry<float> CfgFadeDuration;
+        internal static ConfigEntry<float> CfgFadeHold;
+        internal static ConfigEntry<bool> CfgFadeOnCharacterSwap;
+        internal static ConfigEntry<float> CfgCharacterFadeDuration;
+        internal static ConfigEntry<bool> CfgGrenadeInHand;
+        internal static ConfigEntry<bool> CfgGrenadeFromHand;
+        internal static ConfigEntry<float> CfgGrenadeScale;
+        internal static ConfigEntry<float> CfgGrenadeOffX, CfgGrenadeOffY, CfgGrenadeOffZ;
         internal static ConfigEntry<bool> CfgBlackDefaultSky;
         internal static ConfigEntry<float> CfgHudSceneReminder;
         internal static ConfigEntry<float> CfgHudFlashDuration;
@@ -178,7 +186,7 @@ namespace AwayVR
 
             CfgWeaponAttach = Config.Bind("034 - Weapons", "AttachTo", WeaponAttachMode.Right,
                 "Hand to attach the viewmodel to. Off = leaves the weapons on the camera.");
-            CfgWeaponScale = Config.Bind("034 - Weapons", "Scale", 0.30f,
+            CfgWeaponScale = Config.Bind("034 - Weapons", "Scale", 0.40f,
                 new ConfigDescription("Viewmodel scale. A viewmodel is authored oversized: unnoticeable on a screen, "
                     + "glaring in VR.", new AcceptableValueRange<float>(0.05f, 2f)));
             CfgWeaponAnchor = Config.Bind("034 - Weapons", "AnchorPoint", WeaponAnchorPoint.Centre,
@@ -197,13 +205,6 @@ namespace AwayVR
                 + "reattaches it to the rig. Those objects then stop following the head, which "
                 + "is essential for comfort on the title screen.");
 
-            CfgScreenDistance = Config.Bind("035 - HUD", "VirtualScreenDistance", 2.5f,
-                new ConfigDescription("Distance of the virtual screen hosting the game's full-screen quads, such as the "
-                    + "title menu video.",
-                    new AcceptableValueRange<float>(0.8f, 12f)));
-            CfgScreenWidth = Config.Bind("035 - HUD", "VirtualScreenWidth", 3.0f,
-                new ConfigDescription("Width of that virtual screen, in metres.",
-                    new AcceptableValueRange<float>(0.8f, 20f)));
 
             CfgSwingToAttack = Config.Bind("034 - Weapons", "SwingToAttack", true,
                 "Swinging your hand triggers the attack, for MELEE weapons only. Throwing weapons "
@@ -282,6 +283,44 @@ namespace AwayVR
                     "How long the HUD stays up on arriving in a gameplay scene, before returning to "
                     + "on-demand display. 0 disables it.",
                     new AcceptableValueRange<float>(0f, 15f)));
+            CfgVrFade = Config.Bind("035 - HUD", "VrFade", true,
+                "Reproduces the game's screen fades across the whole field of view. Without "
+                + "it they only darken the floating HUD panel and the world stays visible.");
+            CfgFadeDistance = Config.Bind("035 - HUD", "FadeDistance", 0.30f,
+                new ConfigDescription(
+                    "Distance of the fade surface, in metres. Close enough to cover the view, "
+                    + "far enough not to clip through the near plane.",
+                    new AcceptableValueRange<float>(0.15f, 2f)));
+            CfgFadeDuration = Config.Bind("035 - HUD", "FadeDuration", 0.60f,
+                new ConfigDescription("How long the fade out into the scene takes, in seconds.",
+                    new AcceptableValueRange<float>(0.05f, 5f)));
+            CfgFadeHold = Config.Bind("035 - HUD", "FadeHold", 0.25f,
+                new ConfigDescription(
+                    "How long the view stays fully covered after a scene comes up, before "
+                    + "the fade out begins. Covers the frames the game spends settling.",
+                    new AcceptableValueRange<float>(0f, 5f)));
+            CfgFadeOnCharacterSwap = Config.Bind("035 - HUD", "FadeOnCharacterSwap", true,
+                "Punctuates a character swap with a short fade.");
+            CfgCharacterFadeDuration = Config.Bind("035 - HUD", "CharacterFadeDuration", 0.35f,
+                new ConfigDescription("Length of that fade, in seconds.",
+                    new AcceptableValueRange<float>(0.05f, 2f)));
+            CfgGrenadeInHand = Config.Bind("034 - Weapons", "GrenadeInHand", true,
+                "Shows a grenade in the left hand whenever you have one left.");
+            CfgGrenadeFromHand = Config.Bind("034 - Weapons", "GrenadeFromHand", true,
+                "Throws the grenade from the left hand, in the direction it points, "
+                + "instead of from the camera.");
+            CfgGrenadeScale = Config.Bind("034 - Weapons", "GrenadeScale", 1.0f,
+                new ConfigDescription("Scale of the grenade held in the hand.",
+                    new AcceptableValueRange<float>(0.05f, 5f)));
+            CfgGrenadeOffX = Config.Bind("034 - Weapons", "GrenadeOffsetX", 0f,
+                new ConfigDescription("Grenade offset in the hand, sideways, in metres.",
+                    new AcceptableValueRange<float>(-0.5f, 0.5f)));
+            CfgGrenadeOffY = Config.Bind("034 - Weapons", "GrenadeOffsetY", 0f,
+                new ConfigDescription("Grenade offset in the hand, vertical, in metres.",
+                    new AcceptableValueRange<float>(-0.5f, 0.5f)));
+            CfgGrenadeOffZ = Config.Bind("034 - Weapons", "GrenadeOffsetZ", 0f,
+                new ConfigDescription("Grenade offset in the hand, depth, in metres.",
+                    new AcceptableValueRange<float>(-0.5f, 0.5f)));
             CfgHudAlwaysVisible = Config.Bind("035 - HUD", "HudAlwaysVisible", false,
                 "Shows the HUD permanently instead of only on demand.");
             CfgHudFlashDuration = Config.Bind("035 - HUD", "HudFlashDuration", 2.0f,
@@ -318,6 +357,7 @@ namespace AwayVR
             _harmony.PatchAll(typeof(Patches.FpcPatches));
             _harmony.PatchAll(typeof(Patches.InputPatches));
             _harmony.PatchAll(typeof(Patches.InputRedirect));
+            _harmony.PatchAll(typeof(Grenades));
             Patches.InputRedirect.Apply(_harmony);
             ImguiCapture.Apply(_harmony);
             int n = 0;
@@ -327,6 +367,7 @@ namespace AwayVR
             var host = new GameObject("AwayVR_Manager");
             DontDestroyOnLoad(host);
             host.hideFlags = HideFlags.HideAndDontSave;
+            VrFade.Init();
             host.AddComponent<VrManager>();
             host.AddComponent<Menu.VrMenu>();
 

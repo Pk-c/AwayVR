@@ -159,14 +159,11 @@ namespace AwayVR
             _panel.Show(visible);
             if (!visible) return;
 
-            var cam = VrManager.MainCamera;
-            if (cam == null || _rt == null) return;
+            if (_rt == null) return;
 
             _panel.SetTexture(_rt, a);
-            _panel.Place(cam,
-                         Plugin.CfgDialogDistance.Value,
+            _panel.Place(Plugin.CfgDialogDistance.Value,
                          Plugin.CfgDialogWidth.Value,
-                         Plugin.CfgDialogFollowSpeed.Value,
                          _rt.width, _rt.height);
         }
 

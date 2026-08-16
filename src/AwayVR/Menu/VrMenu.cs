@@ -75,6 +75,16 @@ namespace AwayVR.Menu
             _items.Add(new FloatItem("Position Z (depth)", Plugin.CfgWeaponOffZ,
                 -2.5f, 2.5f, 0.02f, 1.2f, 0.005f, "0.000", " m"));
             _items.Add(new BoolItem("Swing to attack", Plugin.CfgSwingToAttack));
+            _items.Add(new BoolItem("Grenade in hand", Plugin.CfgGrenadeInHand));
+            _items.Add(new BoolItem("Throw from hand", Plugin.CfgGrenadeFromHand));
+            _items.Add(new FloatItem("Grenade scale", Plugin.CfgGrenadeScale,
+                0.05f, 3.00f, 0.02f, 0.8f, 0.01f, "0.00", "x"));
+            _items.Add(new FloatItem("Grenade X", Plugin.CfgGrenadeOffX,
+                -0.50f, 0.50f, 0.01f, 0.3f, 0.005f, "0.000", " m"));
+            _items.Add(new FloatItem("Grenade Y", Plugin.CfgGrenadeOffY,
+                -0.50f, 0.50f, 0.01f, 0.3f, 0.005f, "0.000", " m"));
+            _items.Add(new FloatItem("Grenade Z", Plugin.CfgGrenadeOffZ,
+                -0.50f, 0.50f, 0.01f, 0.3f, 0.005f, "0.000", " m"));
             _items.Add(new FloatItem("Swing threshold", Plugin.CfgSwingThreshold,
                 0.3f, 6f, 0.08f, 2.0f, 0.05f, "0.00", " m/s"));
 
@@ -85,6 +95,8 @@ namespace AwayVR.Menu
 
             _items.Add(new SectionItem("Interface"));
             _items.Add(new BoolItem("HUD always visible", Plugin.CfgHudAlwaysVisible));
+            _items.Add(new BoolItem("VR fade", Plugin.CfgVrFade));
+            _items.Add(new BoolItem("Fade on character swap", Plugin.CfgFadeOnCharacterSwap));
             _items.Add(new FloatItem("HUD size", Plugin.CfgHudWidth,
                 0.50f, 6.00f, 0.10f, 1.5f, 0.05f, "0.00", " m"));
             _items.Add(new FloatItem("HUD distance", Plugin.CfgHudDistance,
