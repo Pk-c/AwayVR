@@ -73,15 +73,19 @@ namespace AwayVR
         /// Re-reads the head pose without advancing the damping. Called just before rendering,
         /// where Unity has re-latched the pose it will actually draw with.
         ///
-        /// The two halves have to stay separate: the lag is integrated over deltaTime, so
-        /// running the full update twice a frame would damp twice as fast. Only the position
-        /// and the reference angle are refreshed here — the lag itself is left alone.
+        /// POSITION ONLY. Re-reading the yaw here defeated the damping outright: the lag was
+        /// measured against the LateUpdate yaw, so adding it to a newer one handed the panel
+        /// the head's latest rotation with a stale correction on top. It snapped forward, then
+        /// LateUpdate pulled it back — which is precisely the shake felt when turning.
+        ///
+        /// The yaw wants no refresh anyway. It is deliberately late, so one frame more costs
+        /// nothing. The position is another matter: it is not damped at all, and a panel left
+        /// at last frame's eye position visibly swims.
         /// </summary>
         public static void Refresh(Transform reference)
         {
             if (reference == null) return;
             Origin = reference.position;
-            Yaw = reference.eulerAngles.y + _lag;
         }
 
         /// <summary>Level rotation the panels should adopt, in world space.</summary>

@@ -33,6 +33,7 @@ namespace AwayVR
 
         private static FieldInfo _fCount;
         private static FieldInfo _fProjectile;
+        private static FieldInfo _fPower;
         private static bool _fieldsResolved;
 
         // ------------------------------------------------------------------
@@ -48,7 +49,14 @@ namespace AwayVR
         private static void Attack_Prefix(weapons_secondary __instance)
         {
             _moved = false;
-            if (!VrManager.VrActive || !Plugin.CfgGrenadeFromHand.Value) return;
+            _powerSaved = false;
+            if (!VrManager.VrActive) return;
+
+            // The force scales even when the throw is not relocated to the hand: they are
+            // separate settings, and how hard you threw is meaningful either way.
+            ApplyPower(__instance);
+
+            if (!Plugin.CfgGrenadeFromHand.Value) return;
 
             var hand = Hands.Get(HandSide.Left);
             if (hand == null) return;
@@ -62,7 +70,13 @@ namespace AwayVR
             // obvious.
             t.position = (_held != null && _held.gameObject.activeInHierarchy)
                 ? _held.position : hand.position;
-            t.rotation = hand.rotation;
+
+            var dir = ThrowDirection(hand);
+            // LookRotation gives up on a direction parallel to its up vector; straight up or
+            // straight down is a perfectly ordinary way to throw a grenade.
+            t.rotation = Mathf.Abs(dir.y) > 0.999f
+                ? Quaternion.LookRotation(dir, Vector3.forward)
+                : Quaternion.LookRotation(dir, Vector3.up);
             _moved = true;
 
             // Every throw is logged. Grenades reported as going off by themselves have two
@@ -74,6 +88,60 @@ namespace AwayVR
         }
 
         /// <summary>
+        /// Scales the throw to how hard you actually threw.
+        ///
+        /// The game applies its force once, as transform.forward * speedpower, with
+        /// speedpower an ordinary int field on the component. So we set it for the duration
+        /// of the call and put it back — no reimplementation of the throw, and the balance
+        /// of the weapon is still the game's own number, merely multiplied.
+        ///
+        /// It being an INT is the one real constraint: the factor is applied to the base
+        /// value and rounded, so a small base value quantises the result. The base is logged
+        /// once, under the input trace, so the granularity can be seen rather than guessed at.
+        /// </summary>
+        private static void ApplyPower(weapons_secondary instance)
+        {
+            _powerSaved = false;
+            if (!Plugin.CfgGrenadePowerFromMotion.Value) return;
+
+            ResolveFields();
+            if (_fPower == null) return;
+
+            int basePower;
+            try { basePower = (int)_fPower.GetValue(instance); }
+            catch { return; }
+
+            if (!_powerLogged)
+            {
+                _powerLogged = true;
+                if (Plugin.CfgTraceInput.Value)
+                    Plugin.Log.LogInfo("[grenade] base speedpower = " + basePower);
+            }
+
+            // Peak hand speed against a reference: throw at the reference speed and the force
+            // is exactly the game's own. Clamped at both ends so a flick cannot send a grenade
+            // across the level, and a grenade let go at rest still leaves the hand.
+            float reference = Mathf.Max(Plugin.CfgGrenadeRefSpeed.Value, 0.1f);
+            float fresh = Time.unscaledTime - _peakTime <= 0.35f ? _peakSpeed : 0f;
+            float factor = Mathf.Clamp(fresh / reference,
+                                       Plugin.CfgGrenadePowerMin.Value,
+                                       Plugin.CfgGrenadePowerMax.Value);
+
+            _powerOriginal = basePower;
+            _powerSaved = true;
+            try { _fPower.SetValue(instance, Mathf.RoundToInt(basePower * factor)); }
+            catch { _powerSaved = false; return; }
+
+            if (Plugin.CfgTraceInput.Value)
+                Plugin.Log.LogInfo("[grenade] thrown at " + fresh.ToString("0.00")
+                                   + " m/s, power x" + factor.ToString("0.00"));
+        }
+
+        private static int _powerOriginal;
+        private static bool _powerSaved;
+        private static bool _powerLogged;
+
+        /// <summary>
         /// Puts the transform back immediately. The move has to last exactly one call: this
         /// component sits in the player hierarchy, and leaving it displaced would drag
         /// whatever else reads it out of place.
@@ -82,6 +150,13 @@ namespace AwayVR
         [HarmonyPostfix]
         private static void Attack_Postfix(weapons_secondary __instance)
         {
+            if (_powerSaved)
+            {
+                _powerSaved = false;
+                try { _fPower.SetValue(__instance, _powerOriginal); }
+                catch { }
+            }
+
             if (!_moved) return;
             _moved = false;
             __instance.transform.position = _savedPos;
@@ -100,6 +175,7 @@ namespace AwayVR
             var tBasics = AccessTools.TypeByName("basics");
             if (tBasics != null) _fCount = AccessTools.Field(tBasics, "grenades");
             _fProjectile = AccessTools.Field(typeof(weapons_secondary), "projectile");
+            _fPower = AccessTools.Field(typeof(weapons_secondary), "speedpower");
         }
 
         private static int Count()
@@ -156,12 +232,18 @@ namespace AwayVR
         // ------------------------------------------------------------------
 
         /// <summary>
-        /// The game's own left trigger axis, already declared in its InputManager on joystick
-        /// axis 8. We read the analog value rather than the button because the button fires
-        /// the moment the trigger moves at all — which is what made grenades feel like they
-        /// were going off on their own.
+        /// Analog axis the gesture reads. We read a value rather than a button because the
+        /// button fires the moment the input moves at all — which is what made grenades feel
+        /// like they were going off on their own.
         /// </summary>
-        private const string TriggerAxis = "LeftTrigg_sensibility_Attack";
+        private static string GestureAxis
+        {
+            get
+            {
+                return Plugin.CfgGrenadeGestureAxis != null
+                    ? Plugin.CfgGrenadeGestureAxis.Value : "AwayVR_GripL";
+            }
+        }
 
         private static bool _armed;
         private static bool _throwPending;
@@ -185,7 +267,7 @@ namespace AwayVR
             }
 
             float v;
-            try { v = Mathf.Abs(Input.GetAxisRaw(TriggerAxis)); }
+            try { v = Mathf.Abs(Input.GetAxisRaw(GestureAxis)); }
             catch { return; }
 
             if (!_armed)
@@ -216,6 +298,79 @@ namespace AwayVR
             return true;
         }
 
+        // ------------------------------------------------------------------
+        // Hand motion, for the throw direction
+        // ------------------------------------------------------------------
+
+        private static Vector3 _lastLocal;
+        private static bool _haveLast;
+        private static Vector3 _peakDir;     // rig space, normalised
+        private static float _peakSpeed;
+        private static float _peakTime = -999f;
+
+        /// <summary>
+        /// Records how fast, and which way, the hand is moving.
+        ///
+        /// Measured in RIG space, not world space: in world space a player who is running
+        /// carries their own locomotion into the reading, and a grenade released while
+        /// sprinting would fly wherever the player happened to be going.
+        ///
+        /// It is the PEAK over the last fraction of a second that counts, not the speed at
+        /// the instant of release. A throw is over before you let go — the hand is already
+        /// slowing when the grip opens — so reading the release moment alone would find a
+        /// hand nearly at rest and lose the direction entirely.
+        /// </summary>
+        private static void TrackMotion(Transform hand)
+        {
+            var local = hand.localPosition;
+            float dt = Mathf.Max(Time.unscaledDeltaTime, 0.0001f);
+
+            if (_haveLast)
+            {
+                var v = (local - _lastLocal) / dt;
+                float speed = v.magnitude;
+                bool stale = Time.unscaledTime - _peakTime > 0.3f;
+                if (speed > _peakSpeed || stale)
+                {
+                    _peakSpeed = speed;
+                    _peakDir = speed > 0.0001f ? v / speed : Vector3.zero;
+                    _peakTime = Time.unscaledTime;
+                }
+            }
+
+            _lastLocal = local;
+            _haveLast = true;
+        }
+
+        /// <summary>
+        /// Which way the grenade leaves. The game applies a fixed force along the transform's
+        /// forward, so direction is the whole of what we control — the strength of the throw
+        /// is the game's own, and stays that way.
+        /// </summary>
+        private static Vector3 ThrowDirection(Transform hand)
+        {
+            if (Plugin.CfgGrenadeAimFromMotion.Value
+                && _peakSpeed >= Plugin.CfgGrenadeMotionMin.Value
+                && Time.unscaledTime - _peakTime <= 0.35f
+                && _peakDir.sqrMagnitude > 0.5f)
+            {
+                // Thrown with an actual arm movement: the gesture already carries its own arc,
+                // so it is taken as it is and given no tilt of its own.
+                var rig = hand.parent;
+                return (rig != null ? rig.rotation * _peakDir : _peakDir).normalized;
+            }
+
+            // Released without a throw: aimed where the hand points, tilted up. Straight along
+            // the controller the grenade leaves flat and drops almost at once, which is the
+            // trajectory that felt wrong — nothing thrown by hand travels level.
+            var dir = hand.forward;
+            var axis = Vector3.Cross(Vector3.up, dir);
+            if (axis.sqrMagnitude > 1e-6f)
+                dir = Quaternion.AngleAxis(-Plugin.CfgGrenadeThrowPitch.Value,
+                                           axis.normalized) * dir;
+            return dir.normalized;
+        }
+
         public static void Tick()
         {
             UpdateGesture();
@@ -228,6 +383,8 @@ namespace AwayVR
 
             var hand = Hands.Get(HandSide.Left);
             if (hand == null) return;
+
+            TrackMotion(hand);
 
             // Rebuilt when the hand is recreated by a scene load, or when the game swaps the
             // projectile for a different one.

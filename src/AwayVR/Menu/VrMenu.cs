@@ -84,6 +84,18 @@ namespace AwayVR.Menu
                 0.00f, 0.50f, 0.02f, 0.5f, 0.01f, "0.00", ""));
             _items.Add(new FloatItem("Armed scale", Plugin.CfgGrenadeArmScale,
                 1.00f, 2.00f, 0.02f, 0.5f, 0.01f, "0.00", "x"));
+            _items.Add(new BoolItem("Aim throw from motion", Plugin.CfgGrenadeAimFromMotion));
+            _items.Add(new FloatItem("Throw motion min", Plugin.CfgGrenadeMotionMin,
+                0.20f, 6.00f, 0.05f, 1.0f, 0.05f, "0.00", " m/s"));
+            _items.Add(new FloatItem("Throw pitch", Plugin.CfgGrenadeThrowPitch,
+                0f, 60f, 1f, 20f, 0.5f, "0", " deg"));
+            _items.Add(new BoolItem("Power from motion", Plugin.CfgGrenadePowerFromMotion));
+            _items.Add(new FloatItem("Throw reference speed", Plugin.CfgGrenadeRefSpeed,
+                0.50f, 10.00f, 0.10f, 1.0f, 0.05f, "0.00", " m/s"));
+            _items.Add(new FloatItem("Throw power min", Plugin.CfgGrenadePowerMin,
+                0.05f, 1.00f, 0.02f, 0.5f, 0.01f, "0.00", "x"));
+            _items.Add(new FloatItem("Throw power max", Plugin.CfgGrenadePowerMax,
+                1.00f, 5.00f, 0.05f, 1.0f, 0.02f, "0.00", "x"));
             _items.Add(new FloatItem("Grenade scale", Plugin.CfgGrenadeScale,
                 0.05f, 3.00f, 0.02f, 0.8f, 0.01f, "0.00", "x"));
             _items.Add(new FloatItem("Grenade X", Plugin.CfgGrenadeOffX,

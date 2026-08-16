@@ -103,6 +103,14 @@ namespace AwayVR
         internal static ConfigEntry<float> CfgGrenadeScale;
         internal static ConfigEntry<float> CfgGrenadeOffX, CfgGrenadeOffY, CfgGrenadeOffZ;
         internal static ConfigEntry<bool> CfgGrenadeGesture;
+        internal static ConfigEntry<string> CfgGrenadeGestureAxis;
+        internal static ConfigEntry<bool> CfgGrenadeAimFromMotion;
+        internal static ConfigEntry<float> CfgGrenadeMotionMin;
+        internal static ConfigEntry<float> CfgGrenadeThrowPitch;
+        internal static ConfigEntry<bool> CfgGrenadePowerFromMotion;
+        internal static ConfigEntry<float> CfgGrenadeRefSpeed;
+        internal static ConfigEntry<float> CfgGrenadePowerMin, CfgGrenadePowerMax;
+        internal static ConfigEntry<float> CfgStickThreshold;
         internal static ConfigEntry<float> CfgGrenadeArmLevel, CfgGrenadeReleaseLevel;
         internal static ConfigEntry<float> CfgGrenadeArmScale;
         internal static ConfigEntry<bool> CfgBlackDefaultSky;
@@ -324,6 +332,11 @@ namespace AwayVR
             CfgCharacterFadeDuration = Config.Bind("035 - HUD", "CharacterFadeDuration", 0.35f,
                 new ConfigDescription("Length of that fade, in seconds.",
                     new AcceptableValueRange<float>(0.05f, 2f)));
+            CfgStickThreshold = Config.Bind("05 - VR bindings", "StickThreshold", 0.9f,
+                new ConfigDescription("How far a stick must be pushed for a directional "
+                    + "binding to fire. High on purpose: the stick is also used for other "
+                    + "things, and a low threshold would trip on the way past.",
+                    new AcceptableValueRange<float>(0.3f, 1f)));
             CfgGrenadeInHand = Config.Bind("034 - Weapons", "GrenadeInHand", true,
                 "Shows a grenade in the left hand whenever you have one left.");
             CfgGrenadeFromHand = Config.Bind("034 - Weapons", "GrenadeFromHand", true,
@@ -344,6 +357,35 @@ namespace AwayVR
             CfgGrenadeGesture = Config.Bind("034 - Weapons", "GrenadeGesture", true,
                 "Squeeze the left trigger fully to arm the grenade, release it fully to throw. "
                 + "Off, the trigger throws on the press — which fires at the lightest touch.");
+            CfgGrenadeGestureAxis = Config.Bind("034 - Weapons", "GrenadeGestureAxis",
+                "AwayVR_GripL",
+                "Analog axis the arm-and-throw gesture reads.");
+            CfgGrenadeAimFromMotion = Config.Bind("034 - Weapons", "GrenadeAimFromMotion", true,
+                "Throw where the hand is actually moving. Below the speed threshold the "
+                + "grenade goes where the hand points instead, so a still release still aims.");
+            CfgGrenadeMotionMin = Config.Bind("034 - Weapons", "GrenadeMotionMin", 1.5f,
+                new ConfigDescription("How fast the hand must move for the motion to aim the "
+                    + "throw, in metres per second.",
+                    new AcceptableValueRange<float>(0.2f, 6f)));
+            CfgGrenadePowerFromMotion = Config.Bind("034 - Weapons", "GrenadePowerFromMotion",
+                true,
+                "Throw as hard as you actually threw. The game's own force is kept as the "
+                + "reference and multiplied, so the weapon's balance is unchanged.");
+            CfgGrenadeRefSpeed = Config.Bind("034 - Weapons", "GrenadeRefSpeed", 3.0f,
+                new ConfigDescription("Hand speed that reproduces the game's original throw, "
+                    + "in metres per second. Lower it if grenades feel heavy.",
+                    new AcceptableValueRange<float>(0.5f, 10f)));
+            CfgGrenadePowerMin = Config.Bind("034 - Weapons", "GrenadePowerMin", 0.35f,
+                new ConfigDescription("Weakest throw, as a fraction of the game's force. Never "
+                    + "zero: a grenade let go at rest must still leave the hand.",
+                    new AcceptableValueRange<float>(0.05f, 1f)));
+            CfgGrenadePowerMax = Config.Bind("034 - Weapons", "GrenadePowerMax", 2.0f,
+                new ConfigDescription("Hardest throw, as a fraction of the game's force.",
+                    new AcceptableValueRange<float>(1f, 5f)));
+            CfgGrenadeThrowPitch = Config.Bind("034 - Weapons", "GrenadeThrowPitch", 20f,
+                new ConfigDescription("Upward tilt applied when aiming by pointing, in degrees. "
+                    + "Level along the controller the grenade drops almost at once.",
+                    new AcceptableValueRange<float>(0f, 60f)));
             CfgGrenadeArmLevel = Config.Bind("034 - Weapons", "GrenadeArmLevel", 0.9f,
                 new ConfigDescription("How far the trigger must travel to arm the grenade.",
                     new AcceptableValueRange<float>(0.4f, 1f)));

@@ -28,18 +28,37 @@ namespace AwayVR
             /// </summary>
             public string Axis;
 
+            /// <summary>
+            /// Which way the axis has to move: 0 for either (a grip, a trigger — travel with
+            /// no direction to it), +1 or -1 for a stick, where up and down are two separate
+            /// inputs on one axis.
+            /// </summary>
+            public int Sign;
+
             public Key(bool left, int button)
             {
-                Left = left; Button = button; Axis = null;
+                Left = left; Button = button; Axis = null; Sign = 0;
             }
 
-            public Key(string axis) { Left = false; Button = -1; Axis = axis; }
+            public Key(string axis) { Left = false; Button = -1; Axis = axis; Sign = 0; }
+
+            public Key(string axis, int sign)
+            {
+                Left = false; Button = -1; Axis = axis; Sign = sign;
+            }
+
+            /// <summary>Cache key: the same axis read two ways must not share an entry.</summary>
+            public string AxisKey
+            {
+                get { return (Sign > 0 ? "+" : Sign < 0 ? "-" : "") + Axis; }
+            }
 
             public bool Valid { get { return Button >= 0 || !string.IsNullOrEmpty(Axis); } }
 
             public override string ToString()
             {
-                if (!string.IsNullOrEmpty(Axis)) return "AX:" + Axis;
+                if (!string.IsNullOrEmpty(Axis))
+                    return (Sign > 0 ? "AX+:" : Sign < 0 ? "AX-:" : "AX:") + Axis;
                 return Button < 0 ? "-" : (Left ? "L:" : "R:") + Button;
             }
 
@@ -55,6 +74,10 @@ namespace AwayVR
 
                 if (prefix.Equals("AX", System.StringComparison.OrdinalIgnoreCase))
                     return new Key(rest);
+                if (prefix.Equals("AX+", System.StringComparison.OrdinalIgnoreCase))
+                    return new Key(rest, 1);
+                if (prefix.Equals("AX-", System.StringComparison.OrdinalIgnoreCase))
+                    return new Key(rest, -1);
 
                 int b;
                 if (!int.TryParse(rest, out b)) return new Key(false, -1);
@@ -67,17 +90,18 @@ namespace AwayVR
         {
             Attack, Guard, Jump, Run, SwitchWeapon,
             Grenade, Map, GameMenu, NextTab, Cancel,
-            VrSettings
+            VrSettings, ShowHud, PrevWeapon
         }
 
         internal static readonly string[] Labels =
         {
             "Attack (right trigger)", "Guard (right grip)", "Jump / confirm (B)",
             "Run (left stick click)",
-            "Switch weapon (left grip)", "Grenade (left trigger)", "Diary (Y)",
+            "Next weapon (right stick down)", "Grenade (left grip)", "Diary (Y)",
             "Pause menu (right stick click)", "Next tab (right trigger)",
             "Cancel (right stick click)",
-            "VR settings (both stick clicks)"
+            "VR settings (both stick clicks)", "Show HUD (left trigger)",
+            "Previous weapon (right stick up)"
         };
 
         /// <summary>
@@ -100,13 +124,23 @@ namespace AwayVR
             "AX:AwayVR_GripR",  // Guard         right grip
             "R:0",              // Jump/confirm  right face button
             "L:8",              // Run           left stick click
-            "AX:AwayVR_GripL",  // SwitchWeapon  left grip
-            "L:14",             // Grenade       left trigger
+            "AX-:RightStickOnlyY",  // SwitchWeapon  right stick down -> next weapon
+            "AX:AwayVR_GripL",  // Grenade       left grip
             "L:2",              // Map           left face button -> "MAP"
             "R:9",              // GameMenu      right stick click -> "Cancel", in-game pause
             "R:15",             // NextTab       right trigger (menus only)
             "R:9",              // Cancel        same command as GameMenu (see Remap)
-            "L:8+R:9"           // VrSettings    both stick clicks
+            "L:8+R:9",          // VrSettings    both stick clicks
+
+            // The HUD is on the left TRIGGER, and the right grip no longer raises it: guard
+            // is held for long stretches of a fight, and a panel that hangs in front of you
+            // the whole time you are blocking is worse than no panel at all.
+            "AX:LeftTrigg_sensibility_Attack",  // ShowHud
+
+            // Both weapon directions share one stick axis, told apart by sign. The stick
+            // rests near zero and only a deliberate push reaches nine tenths of travel, so
+            // neither direction can be brushed by accident.
+            "AX+:RightStickOnlyY"   // PrevWeapon    right stick up
         };
 
         private static BepInEx.Configuration.ConfigEntry<string>[] _entries;
@@ -209,6 +243,16 @@ namespace AwayVR
             get { return Plugin.CfgAxisThreshold != null ? Plugin.CfgAxisThreshold.Value : 0.55f; }
         }
 
+        /// <summary>
+        /// Sticks want a far higher threshold than grips. A stick is pushed in a direction on
+        /// purpose and returns to centre on its own; a grip is squeezed progressively. Sharing
+        /// one threshold would either make the sticks trip on a glance or the grips unusable.
+        /// </summary>
+        private static float StickThreshold
+        {
+            get { return Plugin.CfgStickThreshold != null ? Plugin.CfgStickThreshold.Value : 0.9f; }
+        }
+
         private static readonly System.Collections.Generic.Dictionary<string, bool> AxisState =
             new System.Collections.Generic.Dictionary<string, bool>();
         private static readonly System.Collections.Generic.Dictionary<string, bool> AxisPressed =
@@ -223,21 +267,21 @@ namespace AwayVR
         /// several of the game's scripts poll the same action, and without this the first
         /// call would consume the edge on behalf of all the others.
         /// </summary>
-        private static void UpdateAxis(string name, out bool active, out bool pressed,
-                                       out bool released)
+        private static void UpdateAxis(string name, int sign, string key,
+                                       out bool active, out bool pressed, out bool released)
         {
             bool before;
-            if (!AxisState.TryGetValue(name, out before)) before = false;
+            if (!AxisState.TryGetValue(key, out before)) before = false;
 
             int last;
-            if (AxisFrame.TryGetValue(name, out last) && last == Time.frameCount)
+            if (AxisFrame.TryGetValue(key, out last) && last == Time.frameCount)
             {
                 // Already evaluated this frame: report the SAME edge to everyone. Consuming
                 // it on the first call would deny the event to the scripts that follow,
                 // several of which read the same action.
                 active = before;
-                AxisPressed.TryGetValue(name, out pressed);
-                AxisReleased.TryGetValue(name, out released);
+                AxisPressed.TryGetValue(key, out pressed);
+                AxisReleased.TryGetValue(key, out released);
                 return;
             }
 
@@ -245,14 +289,17 @@ namespace AwayVR
             try { v = Input.GetAxisRaw(name); }
             catch { active = false; pressed = false; released = false; return; }
 
-            active = Mathf.Abs(v) >= AxisThreshold;
+            if (sign > 0) active = v >= StickThreshold;
+            else if (sign < 0) active = v <= -StickThreshold;
+            else active = Mathf.Abs(v) >= AxisThreshold;
+
             pressed = active && !before;
             released = !active && before;
 
-            AxisState[name] = active;
-            AxisPressed[name] = pressed;
-            AxisReleased[name] = released;
-            AxisFrame[name] = Time.frameCount;
+            AxisState[key] = active;
+            AxisPressed[key] = pressed;
+            AxisReleased[key] = released;
+            AxisFrame[key] = Time.frameCount;
         }
 
         public static bool Held(Key t)
@@ -260,7 +307,7 @@ namespace AwayVR
             if (!string.IsNullOrEmpty(t.Axis))
             {
                 bool active, pressed, released;
-                UpdateAxis(t.Axis, out active, out pressed, out released);
+                UpdateAxis(t.Axis, t.Sign, t.AxisKey, out active, out pressed, out released);
                 return active;
             }
             Resolve();
@@ -273,7 +320,7 @@ namespace AwayVR
             if (!string.IsNullOrEmpty(t.Axis))
             {
                 bool active, pressed, released;
-                UpdateAxis(t.Axis, out active, out pressed, out released);
+                UpdateAxis(t.Axis, t.Sign, t.AxisKey, out active, out pressed, out released);
                 return pressed;
             }
             Resolve();
@@ -289,7 +336,7 @@ namespace AwayVR
                 // report a release. Slots_Handler reads "Skip_Up" with GetButtonUp, which
                 // left weapon switching on the grip completely mute.
                 bool active, pressed, released;
-                UpdateAxis(t.Axis, out active, out pressed, out released);
+                UpdateAxis(t.Axis, t.Sign, t.AxisKey, out active, out pressed, out released);
                 return released;
             }
             Resolve();
@@ -438,9 +485,11 @@ namespace AwayVR
                     }
                 }
             }
-            // The grips are analog: without this axis sweep they could not be captured, and
-            // would stay unassignable.
-            foreach (var axisName in new[] { "AwayVR_GripL", "AwayVR_GripR" })
+            // The grips and triggers are analog: without this axis sweep they could not be
+            // captured, and would stay unassignable.
+            foreach (var axisName in new[] { "AwayVR_GripL", "AwayVR_GripR",
+                                             "LeftTrigg_sensibility_Attack",
+                                             "RightTrigg_sensibility_Attack" })
             {
                 float v;
                 try { v = Input.GetAxisRaw(axisName); }
@@ -450,6 +499,16 @@ namespace AwayVR
                     t = new Key(axisName);
                     return true;
                 }
+            }
+
+            // Sticks, captured with their direction: one axis, two bindings.
+            foreach (var axisName in new[] { "RightStickOnlyY", "RightStickOnlyX" })
+            {
+                float v;
+                try { v = Input.GetAxisRaw(axisName); }
+                catch { continue; }
+                if (v >= StickThreshold) { t = new Key(axisName, 1); return true; }
+                if (v <= -StickThreshold) { t = new Key(axisName, -1); return true; }
             }
 
             t = new Key(false, -1);
@@ -471,6 +530,7 @@ namespace AwayVR
                 case "Grenades": a = Action.Grenade; return true;
                 case "MAP": a = Action.Map; return true;
                 case "Skip_Up": a = Action.SwitchWeapon; return true;
+                case "Skip_Down": a = Action.PrevWeapon; return true;
                 case "Fire3": a = Action.Run; return true;
                 case "Jump": a = Action.Jump; return true;
                 case "Submit": a = Action.Jump; return true;

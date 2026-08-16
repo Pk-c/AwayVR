@@ -86,9 +86,10 @@ namespace AwayVR
                 _untilTimeResumes = false;
             }
 
-            // Holding a grip shows the HUD; releasing it hides the HUD again.
-            if (VrBindings.Held(VrBindings.Action.SwitchWeapon)) return "left grip";
-            if (VrBindings.Held(VrBindings.Action.Guard)) return "right grip";
+            // One input, held, shows the HUD and releasing it hides it again. It used to be
+            // either grip, which put it on guard as well — and guard is held for long stretches
+            // of a fight, so the panel sat in front of you throughout.
+            if (VrBindings.Held(VrBindings.Action.ShowHud)) return "hud button";
             return "";
         }
 
