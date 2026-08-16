@@ -95,10 +95,23 @@ namespace AwayVR
         private static float _stopGrace = -999f;
         private static float _reminderUntil = -999f;
         private static float _reminderFrom = -999f;
+        private static bool _firstLoadSeen;
 
         /// <summary>Call on entering each gameplay scene: briefly shows the HUD.</summary>
         public static void OnSceneLoaded()
         {
+            // No reminder for the very first load. That one is leaving the menu for the hub,
+            // where the game hands you a quiet arrival — flashing the HUD across it is the
+            // one place it reads as an intrusion rather than a courtesy. Every later load is
+            // a transition mid-play, where knowing your health and ammo is worth having.
+            if (!_firstLoadSeen)
+            {
+                _firstLoadSeen = true;
+                _reminderFrom = -999f;
+                _reminderUntil = -999f;
+                return;
+            }
+
             _reminderFrom = Time.unscaledTime + Plugin.CfgHudSceneDelay.Value;
             _reminderUntil = _reminderFrom + Plugin.CfgHudSceneReminder.Value;
         }
@@ -199,6 +212,17 @@ namespace AwayVR
 
             _panel.SetTexture(_rt, _alpha);
 
+            Place();
+        }
+
+        /// <summary>
+        /// Placement alone, replayed just before the frame is drawn. See
+        /// VrManager.PlaceBeforeRender: doing this in LateUpdate only meant working from a
+        /// head pose one frame old, which is what made the panel shimmer when nodding.
+        /// </summary>
+        public static void Place()
+        {
+            if (!Active || _alpha <= 0f || _rt == null) return;
             _panel.Place(Plugin.CfgHudDistance.Value,
                          Plugin.CfgHudWidth.Value,
                          _rt.width, _rt.height);

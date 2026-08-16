@@ -162,6 +162,13 @@ namespace AwayVR
             if (_rt == null) return;
 
             _panel.SetTexture(_rt, a);
+            Place();
+        }
+
+        /// <summary>Placement alone, replayed just before the frame is drawn.</summary>
+        public static void Place()
+        {
+            if (!_wasVisible || _rt == null) return;
             _panel.Place(Plugin.CfgDialogDistance.Value,
                          Plugin.CfgDialogWidth.Value,
                          _rt.width, _rt.height);

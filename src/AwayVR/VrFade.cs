@@ -253,6 +253,14 @@ namespace AwayVR
             // plugin fail to load — far too high a price for an option nobody asked for.
             _image.color = new Color(0f, 0f, 0f, Mathf.Clamp01(_alpha));
 
+            Place();
+        }
+
+        /// <summary>Placement alone, replayed just before the frame is drawn.</summary>
+        public static void Place()
+        {
+            if (_canvas == null || !_canvas.enabled) return;
+
             // Follows whichever camera can draw it. The panel camera is preferred — it is
             // the one whose layer we live on — with the main camera as a fallback for the
             // frames just after a scene load, before that camera has been rebuilt.

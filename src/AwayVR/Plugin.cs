@@ -102,6 +102,9 @@ namespace AwayVR
         internal static ConfigEntry<bool> CfgGrenadeFromHand;
         internal static ConfigEntry<float> CfgGrenadeScale;
         internal static ConfigEntry<float> CfgGrenadeOffX, CfgGrenadeOffY, CfgGrenadeOffZ;
+        internal static ConfigEntry<bool> CfgGrenadeGesture;
+        internal static ConfigEntry<float> CfgGrenadeArmLevel, CfgGrenadeReleaseLevel;
+        internal static ConfigEntry<float> CfgGrenadeArmScale;
         internal static ConfigEntry<bool> CfgBlackDefaultSky;
         internal static ConfigEntry<float> CfgHudSceneReminder;
         internal static ConfigEntry<float> CfgHudSceneDelay;
@@ -338,6 +341,19 @@ namespace AwayVR
             CfgGrenadeOffZ = Config.Bind("034 - Weapons", "GrenadeOffsetZ", 0f,
                 new ConfigDescription("Grenade offset in the hand, depth, in metres.",
                     new AcceptableValueRange<float>(-0.5f, 0.5f)));
+            CfgGrenadeGesture = Config.Bind("034 - Weapons", "GrenadeGesture", true,
+                "Squeeze the left trigger fully to arm the grenade, release it fully to throw. "
+                + "Off, the trigger throws on the press — which fires at the lightest touch.");
+            CfgGrenadeArmLevel = Config.Bind("034 - Weapons", "GrenadeArmLevel", 0.9f,
+                new ConfigDescription("How far the trigger must travel to arm the grenade.",
+                    new AcceptableValueRange<float>(0.4f, 1f)));
+            CfgGrenadeReleaseLevel = Config.Bind("034 - Weapons", "GrenadeReleaseLevel", 0.1f,
+                new ConfigDescription("How far back the trigger must come to let it go. Well "
+                    + "below the arming level, so no amount of trembling crosses both.",
+                    new AcceptableValueRange<float>(0f, 0.5f)));
+            CfgGrenadeArmScale = Config.Bind("034 - Weapons", "GrenadeArmScale", 1.2f,
+                new ConfigDescription("How much the grenade swells once armed.",
+                    new AcceptableValueRange<float>(1f, 2f)));
             CfgHudAlwaysVisible = Config.Bind("035 - HUD", "HudAlwaysVisible", false,
                 "Shows the HUD permanently instead of only on demand.");
             CfgHudFlashDuration = Config.Bind("035 - HUD", "HudFlashDuration", 2.0f,

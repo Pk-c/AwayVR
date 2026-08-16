@@ -32,6 +32,12 @@ namespace AwayVR.Patches
 
         public static bool GetButtonDown(string name)
         {
+            // Grenades go through the gesture, never through a press. The trigger reports a
+            // press almost as soon as it is touched, so bound directly it threw a grenade at
+            // the lightest contact.
+            if (VrManager.VrActive && name == "Grenades" && Plugin.CfgGrenadeGesture.Value)
+                return Grenades.ConsumeThrow();
+
             VrBindings.Action a;
             if (VrManager.VrActive && VrBindings.Remap(name, out a)) return VrBindings.Down(a);
             return Input.GetButtonDown(name);

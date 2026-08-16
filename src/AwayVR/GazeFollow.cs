@@ -69,6 +69,21 @@ namespace AwayVR
             Yaw = yaw + _lag;
         }
 
+        /// <summary>
+        /// Re-reads the head pose without advancing the damping. Called just before rendering,
+        /// where Unity has re-latched the pose it will actually draw with.
+        ///
+        /// The two halves have to stay separate: the lag is integrated over deltaTime, so
+        /// running the full update twice a frame would damp twice as fast. Only the position
+        /// and the reference angle are refreshed here — the lag itself is left alone.
+        /// </summary>
+        public static void Refresh(Transform reference)
+        {
+            if (reference == null) return;
+            Origin = reference.position;
+            Yaw = reference.eulerAngles.y + _lag;
+        }
+
         /// <summary>Level rotation the panels should adopt, in world space.</summary>
         public static Quaternion Rotation { get { return Quaternion.Euler(0f, Yaw, 0f); } }
 

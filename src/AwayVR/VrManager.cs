@@ -65,6 +65,36 @@ namespace AwayVR
         private void OnDestroy()
         {
             SceneManager.sceneLoaded -= OnSceneLoaded;
+            Application.onBeforeRender -= PlaceBeforeRender;
+        }
+
+        private void OnEnable() { Application.onBeforeRender += PlaceBeforeRender; }
+        private void OnDisable() { Application.onBeforeRender -= PlaceBeforeRender; }
+
+        /// <summary>
+        /// Re-places everything that has to sit exactly where the head is, in the very last
+        /// moment before the frame is drawn.
+        ///
+        /// LateUpdate is too early: Unity re-latches the head pose after it, so anything that
+        /// compensates for a head or hand rotation there works from a value one frame stale.
+        /// That is what made the HUD shimmer when nodding and the grenade tremble in the
+        /// hand — the same defect, seen twice.
+        ///
+        /// Only placement runs here. The damping and every other decision stay in LateUpdate,
+        /// because they integrate over deltaTime and would advance twice per frame.
+        /// </summary>
+        private void PlaceBeforeRender()
+        {
+            if (!VrActive) return;
+
+            PanelOverlay.Synchronise(MainCamera);
+            GazeFollow.Refresh(PanelOverlay.Anchor);
+            FollowVirtualScreens();
+
+            ImguiCapture.Place();
+            HudCapture.Place();
+            VrFade.Place();
+            Grenades.Place();
         }
 
         // ------------------------------------------------------------------

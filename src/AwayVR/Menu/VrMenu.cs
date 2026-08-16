@@ -77,6 +77,13 @@ namespace AwayVR.Menu
             _items.Add(new BoolItem("Swing to attack", Plugin.CfgSwingToAttack));
             _items.Add(new BoolItem("Grenade in hand", Plugin.CfgGrenadeInHand));
             _items.Add(new BoolItem("Throw from hand", Plugin.CfgGrenadeFromHand));
+            _items.Add(new BoolItem("Throw by release", Plugin.CfgGrenadeGesture));
+            _items.Add(new FloatItem("Arm at", Plugin.CfgGrenadeArmLevel,
+                0.40f, 1.00f, 0.02f, 0.5f, 0.01f, "0.00", ""));
+            _items.Add(new FloatItem("Release at", Plugin.CfgGrenadeReleaseLevel,
+                0.00f, 0.50f, 0.02f, 0.5f, 0.01f, "0.00", ""));
+            _items.Add(new FloatItem("Armed scale", Plugin.CfgGrenadeArmScale,
+                1.00f, 2.00f, 0.02f, 0.5f, 0.01f, "0.00", "x"));
             _items.Add(new FloatItem("Grenade scale", Plugin.CfgGrenadeScale,
                 0.05f, 3.00f, 0.02f, 0.8f, 0.01f, "0.00", "x"));
             _items.Add(new FloatItem("Grenade X", Plugin.CfgGrenadeOffX,

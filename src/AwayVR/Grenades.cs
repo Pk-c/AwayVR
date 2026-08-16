@@ -1,6 +1,7 @@
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.XR;
 
 namespace AwayVR
 {
@@ -55,7 +56,12 @@ namespace AwayVR
             var t = __instance.transform;
             _savedPos = t.position;
             _savedRot = t.rotation;
-            t.position = hand.position;
+            // From the MODEL, not from the hand. Once the grenade is offset in the grip the
+            // two are centimetres apart, and a throw that starts somewhere other than where
+            // you can see the grenade is exactly the kind of mismatch a headset makes
+            // obvious.
+            t.position = (_held != null && _held.gameObject.activeInHierarchy)
+                ? _held.position : hand.position;
             t.rotation = hand.rotation;
             _moved = true;
 
@@ -145,8 +151,75 @@ namespace AwayVR
             return rootT;
         }
 
+        // ------------------------------------------------------------------
+        // Throw gesture
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// The game's own left trigger axis, already declared in its InputManager on joystick
+        /// axis 8. We read the analog value rather than the button because the button fires
+        /// the moment the trigger moves at all — which is what made grenades feel like they
+        /// were going off on their own.
+        /// </summary>
+        private const string TriggerAxis = "LeftTrigg_sensibility_Attack";
+
+        private static bool _armed;
+        private static bool _throwPending;
+        private static float _pendingSince;
+
+        /// <summary>True while the trigger is squeezed and the grenade is ready to leave.</summary>
+        public static bool Armed { get { return _armed; } }
+
+        /// <summary>
+        /// Reads the gesture: squeeze the trigger all the way to arm, let it go all the way to
+        /// throw. Two widely separated thresholds, so no amount of trembling on the trigger
+        /// can cross both.
+        /// </summary>
+        private static void UpdateGesture()
+        {
+            if (!VrManager.VrActive || !Plugin.CfgGrenadeGesture.Value)
+            {
+                _armed = false;
+                _throwPending = false;
+                return;
+            }
+
+            float v;
+            try { v = Mathf.Abs(Input.GetAxisRaw(TriggerAxis)); }
+            catch { return; }
+
+            if (!_armed)
+            {
+                if (v >= Plugin.CfgGrenadeArmLevel.Value && Count() >= 1) _armed = true;
+            }
+            else if (v <= Plugin.CfgGrenadeReleaseLevel.Value)
+            {
+                _armed = false;
+                _throwPending = true;
+                _pendingSince = Time.unscaledTime;
+            }
+        }
+
+        /// <summary>
+        /// Claimed by the input redirect in place of the raw button press.
+        ///
+        /// A flag rather than a single-frame pulse: the gesture is read in LateUpdate and the
+        /// game reads its button in Update, and nothing fixes the order between our scripts
+        /// and its own. It does go stale after a moment, so a throw that finds no reader —
+        /// during a load, say — cannot surface much later as a grenade nobody asked for.
+        /// </summary>
+        public static bool ConsumeThrow()
+        {
+            if (!_throwPending) return false;
+            if (Time.unscaledTime - _pendingSince > 0.5f) { _throwPending = false; return false; }
+            _throwPending = false;
+            return true;
+        }
+
         public static void Tick()
         {
+            UpdateGesture();
+
             if (!VrManager.VrActive || !Plugin.CfgGrenadeInHand.Value)
             {
                 if (_held != null) _held.gameObject.SetActive(false);
@@ -181,18 +254,39 @@ namespace AwayVR
             if (_held.gameObject.activeSelf != show) _held.gameObject.SetActive(show);
             if (!show) return;
 
+            // Swells while armed: the only feedback there is that the throw is charged, and
+            // without it you cannot tell an armed grenade from an idle one.
             float s = Plugin.CfgGrenadeScale.Value;
+            if (_armed) s *= Plugin.CfgGrenadeArmScale.Value;
             _held.localScale = new Vector3(s, s, s);
+
+            Place();
+        }
+
+        /// <summary>
+        /// Places the held model. Called just before the frame is drawn, never from
+        /// LateUpdate: the hand pose is re-latched afterwards, and compensating for a
+        /// rotation one frame old is what made the grenade tremble in the hand.
+        /// </summary>
+        public static void Place()
+        {
+            if (_held == null || !_held.gameObject.activeSelf) return;
 
             // The offset is expressed in RIG space, not hand space — the same lesson the
             // weapon taught us. An offset written in hand space rotates with the wrist and
             // becomes a lever arm, so moving the grenade inevitably moves its centre of
             // rotation too. Cancelling the hand's rotation on the offset alone leaves the
             // held point where the controller is, and the offset merely translates it.
+            //
+            // The rotation is read from the tracking rather than from the parent transform.
+            // Both end up the same, but the parent's copy is only written by its own
+            // before-render callback, and nothing orders that against ours — reading the
+            // source directly removes the question entirely.
+            var rot = InputTracking.GetLocalRotation(XRNode.LeftHand);
             var offset = new Vector3(Plugin.CfgGrenadeOffX.Value,
                                      Plugin.CfgGrenadeOffY.Value,
                                      Plugin.CfgGrenadeOffZ.Value);
-            _held.localPosition = Quaternion.Inverse(hand.localRotation) * offset;
+            _held.localPosition = Quaternion.Inverse(rot) * offset;
             _held.localRotation = Quaternion.identity;
         }
 
