@@ -18,6 +18,10 @@ namespace AwayVR
         internal static ConfigEntry<bool> CfgEnabled;
         internal static ConfigEntry<string> CfgDevice;
         internal static ConfigEntry<float> CfgResolutionScale;
+        internal static ConfigEntry<bool> CfgAnisotropic;
+        internal static ConfigEntry<int> CfgShadowCascades;
+        internal static ConfigEntry<ShadowResolution> CfgShadowResolution;
+        internal static ConfigEntry<float> CfgLodBias;
         internal static ConfigEntry<bool> CfgRecenterOnLoad;
         internal static ConfigEntry<bool> CfgRoomScaleMove;
         internal static ConfigEntry<bool> CfgBlockCameraOnWalls;
@@ -109,8 +113,27 @@ namespace AwayVR
                 "Enables VR. When false the game starts normally in 2D.");
             CfgDevice = Config.Bind("01 - XR", "Device", "OpenVR",
                 "Name of the XR device to load. Must appear in globalgamemanagers' enabledVRDevices.");
-            CfgResolutionScale = Config.Bind("01 - XR", "ResolutionScale", 1.0f,
-                new ConfigDescription("Eye texture supersampling.", new AcceptableValueRange<float>(0.5f, 2.0f)));
+            CfgResolutionScale = Config.Bind("01 - XR", "ResolutionScale", 1.5f,
+                new ConfigDescription(
+                    "Eye texture supersampling. The game renders deferred, where MSAA does "
+                    + "not exist, so this is the ONLY anti-aliasing available — hence a "
+                    + "default well above 1. Lower it if the frame rate suffers.",
+                    new AcceptableValueRange<float>(0.5f, 2.0f)));
+            CfgAnisotropic = Config.Bind("06 - Visuals", "ForceAnisotropic", true,
+                "Forces anisotropic filtering on every texture. The game's preset only enables "
+                + "it per texture, and its textures mostly do not ask for it, so floors and "
+                + "walls blur at a grazing angle. Close to free.");
+            CfgShadowCascades = Config.Bind("06 - Visuals", "ShadowCascades", 4,
+                new ConfigDescription("Directional shadow cascades. More cascades over the "
+                    + "same distance means sharper shadows near the player.",
+                    new AcceptableValueList<int>(1, 2, 4)));
+            CfgShadowResolution = Config.Bind("06 - Visuals", "ShadowResolution",
+                ShadowResolution.VeryHigh,
+                "Shadow map resolution. The game's preset stops at High.");
+            CfgLodBias = Config.Bind("06 - Visuals", "LodBias", 5.0f,
+                new ConfigDescription("Keeps high-detail models in use further away. The game "
+                    + "ships 3.0.", new AcceptableValueRange<float>(0.5f, 10f)));
+
             CfgRecenterOnLoad = Config.Bind("01 - XR", "RecenterOnSceneLoad", true,
                 "Recentres the view on every scene load, so you start facing the character's "
                 + "forward rather than wherever the headset happened to point at spawn.");

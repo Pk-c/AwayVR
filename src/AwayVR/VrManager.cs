@@ -156,6 +156,7 @@ namespace AwayVR
             XRDevice.SetTrackingSpaceType(TrackingSpaceType.Stationary);
 
             XRSettings.eyeTextureResolutionScale = Plugin.CfgResolutionScale.Value;
+            Visuals.Apply(true);
 
             // The VR compositor sets its own pace: the game's vsync has to go, and the game
             // must keep running even without window focus.
@@ -267,6 +268,10 @@ namespace AwayVR
                 _maskCam = cam;
                 _baseMask = cam.cullingMask;
             }
+
+            // Re-applied per scene: the game calls SetQualityLevel on its own, which resets
+            // every one of these.
+            Visuals.Apply(Plugin.CfgVerbose.Value);
 
             PlayerBody.Apply(cam, Plugin.CfgVerbose.Value);
             Weapons.Apply(Plugin.CfgWeaponAttach.Value, Plugin.CfgVerbose.Value);
