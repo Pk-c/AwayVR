@@ -331,10 +331,32 @@ namespace AwayVR
             if (hand != null)
             {
                 var held = hand.Find("AwayVR_HeldGrenade");
-                sb.AppendLine("  held model        : "
-                              + (held == null ? "not built"
-                                 : "built, active=" + held.gameObject.activeInHierarchy
-                                   + ", scale=" + held.localScale.x.ToString("0.00")));
+                if (held == null) sb.AppendLine("  held model        : not built");
+                else
+                {
+                    var cam = VrManager.MainCamera;
+                    sb.AppendLine("  held model        : built, active="
+                                  + held.gameObject.activeInHierarchy
+                                  + ", scale=" + held.localScale.x.ToString("0.00"));
+
+                    // Where it actually ENDS UP. "Built and active" says nothing about
+                    // whether it is anywhere you could see it: a mesh nested in the prefab
+                    // can land metres away, which looks exactly like it was never created.
+                    foreach (var r in held.GetComponentsInChildren<Renderer>(true))
+                    {
+                        var d = cam != null
+                            ? (r.bounds.center - cam.transform.position).magnitude : 0f;
+                        float angle = cam != null
+                            ? Vector3.Angle(cam.transform.forward,
+                                            r.bounds.center - cam.transform.position) : 0f;
+                        sb.AppendLine("      " + r.name
+                                      + "  size=" + r.bounds.size.ToString("0.00")
+                                      + "  distance=" + d.ToString("0.00") + " m"
+                                      + "  angle=" + angle.ToString("0") + " deg"
+                                      + "  visible=" + r.isVisible
+                                      + "  layer=" + r.gameObject.layer);
+                    }
+                }
             }
         }
 

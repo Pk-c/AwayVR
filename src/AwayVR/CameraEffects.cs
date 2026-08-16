@@ -135,6 +135,56 @@ namespace AwayVR
             return set;
         }
 
+        /// <summary>
+        /// Switches the game's bloom off, wherever it lives.
+        ///
+        /// AmplifyBloomEffect sits on Weapons_Camera, alongside the colour grading — and
+        /// nowhere else. While that camera was disabled to cure the double arm, the game had
+        /// no bloom and no grading at all, which is the flatter, brighter image the mod has
+        /// shown until now. Letting the camera render again restores the intended look, but
+        /// bloom is markedly harsher in a headset than on a monitor, so it gets its own
+        /// switch rather than an all-or-nothing choice between correct colours and no glare.
+        /// </summary>
+        public static void ApplyBloom(bool disabled)
+        {
+            foreach (var cam in UnityEngine.Object.FindObjectsOfType<Camera>())
+            {
+                foreach (var c in cam.GetComponents<MonoBehaviour>())
+                {
+                    if (c == null) continue;
+                    if (c.GetType().Name.IndexOf("Bloom", StringComparison.OrdinalIgnoreCase) < 0)
+                        continue;
+                    if (c.enabled == !disabled) continue;
+                    c.enabled = !disabled;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Switches the game's colour grading off.
+        ///
+        /// WeaponCameraColorFilters carries some thirty LUTs and rides on the weapons camera
+        /// next to the bloom. Restoring that camera brought the grading back with it — and
+        /// what reads as pleasing contrast on a monitor reads as crushed and harsh in a
+        /// headset, where the image fills your whole field of view. Off by default for that
+        /// reason, and a setting rather than a decision because it is a matter of taste.
+        /// </summary>
+        public static void ApplyColorGrading(bool disabled)
+        {
+            foreach (var cam in UnityEngine.Object.FindObjectsOfType<Camera>())
+            {
+                foreach (var c in cam.GetComponents<MonoBehaviour>())
+                {
+                    if (c == null) continue;
+                    var n = c.GetType().Name;
+                    if (n.IndexOf("ColorFilters", StringComparison.OrdinalIgnoreCase) < 0
+                        && n.IndexOf("Lut", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    if (c.enabled == !disabled) continue;
+                    c.enabled = !disabled;
+                }
+            }
+        }
+
         // --- global toggle, a bisection tool ---
 
         private static List<MonoBehaviour> _suspended;

@@ -60,9 +60,12 @@ namespace AwayVR
             // scene has loaded.
             if (!VrManager.InGame) return "outside gameplay";
 
-            // Short reminder on arriving in a scene: you get to see your ammo, health and
-            // characters without having to ask for the HUD.
-            if (Time.unscaledTime < _reminderUntil) return "scene arrival";
+            // Arrival reminder: nothing at all for a moment, then the HUD for a couple of
+            // seconds. The delay matters — a scene comes up mid-load with the view still
+            // settling, and showing the HUD immediately means it is gone before there is
+            // anything to read.
+            float now = Time.unscaledTime;
+            if (now >= _reminderFrom && now < _reminderUntil) return "scene arrival";
 
             if (Plugin.CfgHudAlwaysVisible.Value) return "always-visible option";
 
@@ -91,11 +94,13 @@ namespace AwayVR
 
         private static float _stopGrace = -999f;
         private static float _reminderUntil = -999f;
+        private static float _reminderFrom = -999f;
 
         /// <summary>Call on entering each gameplay scene: briefly shows the HUD.</summary>
         public static void OnSceneLoaded()
         {
-            _reminderUntil = Time.unscaledTime + Plugin.CfgHudSceneReminder.Value;
+            _reminderFrom = Time.unscaledTime + Plugin.CfgHudSceneDelay.Value;
+            _reminderUntil = _reminderFrom + Plugin.CfgHudSceneReminder.Value;
         }
 
         /// <summary>Camera to attach canvases to, or null if capture is unavailable.</summary>

@@ -15,9 +15,12 @@ namespace AwayVR
     /// the scene load itself covers the cut. Mirroring a value that only ever reads 0 or 1
     /// gives exactly what was reported: it shows, then it disappears.
     ///
-    /// So we drive the fade ourselves, from scene events. Opaque the moment a scene comes up,
-    /// then a smooth fade out into the world. The game's plate is still silenced, since on the
-    /// floating HUD panel it is nothing but an ugly rectangle.
+    /// So we drive the fade ourselves. It punctuates CHARACTER SWAPS only: covering scene
+    /// loads as well was tried and dropped, because the load already blanks the view and a
+    /// second cover on top of it just delayed getting back to the game.
+    ///
+    /// The game's own plate is silenced regardless — on the floating HUD panel it is nothing
+    /// but an ugly black rectangle, and that holds whether or not we draw a fade of our own.
     ///
     /// Two things follow from this being ours rather than borrowed: the timing is a setting
     /// rather than a guess, and the surface is head-locked with no follow lag — a fade you can
@@ -60,13 +63,11 @@ namespace AwayVR
         /// </summary>
         public static void OnSceneLoaded()
         {
+            // The graphics are destroyed by the load, so every reference goes with them. No
+            // fade is raised here: a scene load blanks the view on its own.
             Silenced.Clear();
             _nextScan = 0f;
-
-            if (!Plugin.CfgVrFade.Value) return;
-            _alpha = 1f;
-            _holdUntil = Time.unscaledTime + Plugin.CfgFadeHold.Value;
-            _duration = Plugin.CfgFadeDuration.Value;
+            _alpha = 0f;
             _lastCharacter = null;
         }
 
@@ -76,6 +77,13 @@ namespace AwayVR
         /// </summary>
         private static void SilenceGamePlates()
         {
+            // Known plates are silenced EVERY frame. Only the search is throttled: the game
+            // switches its plate back on for a single frame when it flashes one — on a
+            // character swap, for instance — and a sweep every half second let exactly that
+            // through as a black rectangle on the HUD.
+            foreach (var kv in Silenced)
+                if (kv.Key != null && kv.Key.enabled) kv.Key.enabled = false;
+
             if (Time.unscaledTime < _nextScan) return;
             _nextScan = Time.unscaledTime + 0.5f;
 
@@ -120,8 +128,6 @@ namespace AwayVR
                         Plugin.Log.LogInfo("Game fade plate silenced: '" + g.name + "' on "
                                            + Hierarchy.Path(g.transform));
                 }
-                // Reapplied every sweep: the game switches its plate back on when it starts a
-                // transition of its own.
                 if (g.enabled) g.enabled = false;
             }
         }

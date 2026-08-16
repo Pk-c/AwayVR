@@ -33,6 +33,8 @@ namespace AwayVR
 
         // --- full-screen effects ---
         internal static ConfigEntry<string> CfgDisabledEffects;
+        internal static ConfigEntry<bool> CfgDisableBloom;
+        internal static ConfigEntry<bool> CfgDisableColorGrading;
 
         // --- locomotion ---
         internal static ConfigEntry<bool> CfgHeadRelativeMove;
@@ -102,6 +104,7 @@ namespace AwayVR
         internal static ConfigEntry<float> CfgGrenadeOffX, CfgGrenadeOffY, CfgGrenadeOffZ;
         internal static ConfigEntry<bool> CfgBlackDefaultSky;
         internal static ConfigEntry<float> CfgHudSceneReminder;
+        internal static ConfigEntry<float> CfgHudSceneDelay;
         internal static ConfigEntry<float> CfgHudFlashDuration;
         internal static ConfigEntry<float> CfgHudFadeSpeed;
 
@@ -157,6 +160,14 @@ namespace AwayVR
                 "Comma-separated names of components to switch off on the cameras in VR. Empty by "
                 + "default: the F11 test showed that none of this game's effects breaks stereo.");
 
+            CfgDisableBloom = Config.Bind("03 - Effects", "DisableBloom", false,
+                "Switches off the game's bloom. It lives on the weapons camera together "
+                + "with the colour grading, and is far harsher in a headset than on a "
+                + "monitor. The grading is kept either way.");
+            CfgDisableColorGrading = Config.Bind("03 - Effects", "DisableColorGrading", true,
+                "Switches off the game's colour grading. It rides on the weapons camera and "
+                + "reads as far too contrasted in a headset, where the image fills your whole "
+                + "field of view. Off by default; set to false for the flat game's look.");
             CfgHeadRelativeMove = Config.Bind("025 - Locomotion", "HeadRelativeMovement", true,
                 "Movement follows the GAZE direction rather than the body orientation. Forward goes "
                 + "where you look, and strafing is relative to the head. false = original "
@@ -278,6 +289,12 @@ namespace AwayVR
             CfgBlackDefaultSky = Config.Bind("02 - Camera", "BlackDefaultSkybox", true,
                 "Replaces Unity's default skybox with a black background. Screens with no scenery, "
                 + "such as the rewards screen, otherwise leave an empty blue sky in VR.");
+            CfgHudSceneDelay = Config.Bind("035 - HUD", "HudSceneDelay", 2.0f,
+                new ConfigDescription(
+                    "How long to wait after a scene comes up before showing the HUD. The view "
+                    + "is still settling during a load, and showing it at once means it is gone "
+                    + "before there is anything to read.",
+                    new AcceptableValueRange<float>(0f, 15f)));
             CfgHudSceneReminder = Config.Bind("035 - HUD", "HudSceneReminder", 2.0f,
                 new ConfigDescription(
                     "How long the HUD stays up on arriving in a gameplay scene, before returning to "

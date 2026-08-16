@@ -123,11 +123,20 @@ namespace AwayVR
                 var piece = new GameObject(mf.name);
                 piece.transform.SetParent(rootT, false);
 
-                // Local placement relative to the prefab root, so a multi-part model keeps
-                // its shape.
-                piece.transform.localPosition = mf.transform.localPosition;
-                piece.transform.localRotation = mf.transform.localRotation;
-                piece.transform.localScale = mf.transform.localScale;
+                // Placement relative to the PREFAB ROOT, not to the mesh's immediate parent.
+                // Copying localPosition straight across only works for a mesh sitting at the
+                // top level; nested one level down it inherits an offset that is never
+                // applied, and the model ends up metres from the hand.
+                var rel = prefab.transform.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                piece.transform.localPosition = rel.GetColumn(3);
+                var forward = (Vector3)rel.GetColumn(2);
+                var up = (Vector3)rel.GetColumn(1);
+                if (forward.sqrMagnitude > 1e-8f && up.sqrMagnitude > 1e-8f)
+                    piece.transform.localRotation = Quaternion.LookRotation(forward, up);
+                piece.transform.localScale = new Vector3(
+                    ((Vector3)rel.GetColumn(0)).magnitude,
+                    ((Vector3)rel.GetColumn(1)).magnitude,
+                    ((Vector3)rel.GetColumn(2)).magnitude);
 
                 piece.AddComponent<MeshFilter>().sharedMesh = mf.sharedMesh;
                 piece.AddComponent<MeshRenderer>().sharedMaterials = mr.sharedMaterials;
@@ -174,9 +183,16 @@ namespace AwayVR
 
             float s = Plugin.CfgGrenadeScale.Value;
             _held.localScale = new Vector3(s, s, s);
-            _held.localPosition = new Vector3(Plugin.CfgGrenadeOffX.Value,
-                                              Plugin.CfgGrenadeOffY.Value,
-                                              Plugin.CfgGrenadeOffZ.Value);
+
+            // The offset is expressed in RIG space, not hand space — the same lesson the
+            // weapon taught us. An offset written in hand space rotates with the wrist and
+            // becomes a lever arm, so moving the grenade inevitably moves its centre of
+            // rotation too. Cancelling the hand's rotation on the offset alone leaves the
+            // held point where the controller is, and the offset merely translates it.
+            var offset = new Vector3(Plugin.CfgGrenadeOffX.Value,
+                                     Plugin.CfgGrenadeOffY.Value,
+                                     Plugin.CfgGrenadeOffZ.Value);
+            _held.localPosition = Quaternion.Inverse(hand.localRotation) * offset;
             _held.localRotation = Quaternion.identity;
         }
 

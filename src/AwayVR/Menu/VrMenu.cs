@@ -91,6 +91,8 @@ namespace AwayVR.Menu
             _items.Add(new SectionItem("Graphics"));
             _items.Add(new FloatItem("World scale", Plugin.CfgWorldScale,
                 0.30f, 3.00f, 0.06f, 0.8f, 0.01f, "0.00", "x"));
+            _items.Add(new BoolItem("Disable bloom", Plugin.CfgDisableBloom));
+            _items.Add(new BoolItem("Disable colour grading", Plugin.CfgDisableColorGrading));
             _items.Add(new LayerComboItem("Hidden layers"));
 
             _items.Add(new SectionItem("Interface"));

@@ -730,6 +730,11 @@ namespace AwayVR
                 _nextEffectSweep = Time.unscaledTime + 0.5f;
                 CameraEffects.ApplyDisableList(Plugin.CfgDisabledEffects.Value, false);
 
+                // Swept rather than driven per frame: scanning every camera is far too
+                // costly at frame rate, and the game re-enables its bloom on its own.
+                CameraEffects.ApplyBloom(Plugin.CfgDisableBloom.Value);
+                CameraEffects.ApplyColorGrading(Plugin.CfgDisableColorGrading.Value);
+
                 // UI_hide_map re-enables the minimap whenever you leave a cave, and scenes
                 // create canvases of their own: we sweep behind them.
                 CanvasTools.Apply(false);
