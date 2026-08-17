@@ -220,6 +220,7 @@ namespace AwayVR
             RootBisect.Reset();
             GameState.OnSceneLoaded();
             Swing.OnSceneLoaded();
+            Trails.Forget();
             _fpc = null;
             Refraction.Forget();
             WeaponEffects.Forget();
@@ -724,6 +725,7 @@ namespace AwayVR
             VrFade.Tick();
             Grenades.Tick();
             FpsCounter.Tick();
+            Trails.Tick();
             Refraction.Tick();
         }
 
@@ -762,7 +764,8 @@ namespace AwayVR
                                     Plugin.CfgDisableOcclusion.Value,
                                     Plugin.CfgDisableGlobalFog.Value,
                                     Plugin.CfgDisableDepthOfField.Value,
-                                    Plugin.CfgDisableBlink.Value);
+                                    Plugin.CfgDisableBlink.Value,
+                                    !Plugin.CfgCharacterEffects.Value);
                 Visuals.Apply(false);
 
                 // UI_hide_map re-enables the minimap whenever you leave a cave, and scenes

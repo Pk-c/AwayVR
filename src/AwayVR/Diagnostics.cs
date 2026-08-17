@@ -25,6 +25,7 @@ namespace AwayVR
             Refraction.Dump(sb);
             LayerTools.Dump(sb, VrManager.MainCamera);
             Weapons.Dump(sb);
+            Trails.Dump(sb);
             Weapons.DumpArmesOrphelines(sb);
             DumpNodes(sb);
             DumpEtatJeu(sb);
@@ -138,6 +139,7 @@ namespace AwayVR
                           + "  noGlobalFog=" + Plugin.CfgDisableGlobalFog.Value);
             sb.AppendLine("  noBlink=" + Plugin.CfgDisableBlink.Value
                           + "  noTemporalAA=" + Plugin.CfgDisableTemporalAA.Value
+                          + "  charEffects=" + Plugin.CfgCharacterEffects.Value
                           + "  noBloom=" + Plugin.CfgDisableBloom.Value
                           + "  noColorGrading=" + Plugin.CfgDisableColorGrading.Value);
             sb.AppendLine("  layerBisect=" + (LayerBisect.Current < 0 ? "none"

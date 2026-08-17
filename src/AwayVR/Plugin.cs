@@ -28,6 +28,7 @@ namespace AwayVR
         internal static ConfigEntry<bool> CfgDisableGlobalFog;
         internal static ConfigEntry<bool> CfgDisableDepthOfField;
         internal static ConfigEntry<bool> CfgDisableBlink;
+        internal static ConfigEntry<bool> CfgCharacterEffects;
         internal static ConfigEntry<bool> CfgWeaponsCameraOff;
         internal static ConfigEntry<bool> CfgFpsCounter;
         internal static ConfigEntry<bool> CfgRecenterOnLoad;
@@ -61,6 +62,9 @@ namespace AwayVR
 
         // --- swing to attack ---
         internal static ConfigEntry<bool> CfgSwingToAttack;
+        internal static ConfigEntry<bool> CfgWeaponTrail;
+        internal static ConfigEntry<float> CfgTrailSpeed;
+        internal static ConfigEntry<float> CfgTrailHold;
         internal static ConfigEntry<float> CfgSwingThreshold;
         internal static ConfigEntry<float> CfgSwingCooldown;
 
@@ -169,6 +173,12 @@ namespace AwayVR
             CfgDisableBlink = Config.Bind("06 - Visuals", "DisableBlinkEffect", true,
                 "Switches off the eyelid-blink transition, which bends the whole screen "
                 + "through a curvature term and only stops when its fade completes.");
+            CfgCharacterEffects = Config.Bind("06 - Visuals", "CharacterEffects", true,
+                "The per-character full-screen washes - the mechanic's red, the magician's "
+                + "cracked glasses. Strong enough in a headset that some players will want "
+                + "them off. Off leaves the effects' host camera alone; only the components "
+                + "are switched off, and the game re-enables them on a swap so the sweep "
+                + "keeps forcing them.");
             CfgWeaponsCameraOff = Config.Bind("06 - Visuals", "WeaponsCameraOff", true,
                 "Disables Weapons_Camera instead of leaving it running blind, moving its "
                 + "per-character effects onto the main camera first so nothing is lost. The "
@@ -251,6 +261,18 @@ namespace AwayVR
                 "Swinging your hand triggers the attack, for MELEE weapons only. Throwing weapons "
                 + "keep the trigger: hurling a projectile by waving your hand would be "
                 + "imprecise.");
+            CfgWeaponTrail = Config.Bind("034 - Weapons", "WeaponTrail", true,
+                "Draws the weapon's trail when you swing. The game raised it from the attack "
+                + "animation, which no longer carries the blade now that the weapon follows "
+                + "the hand.");
+            CfgTrailSpeed = Config.Bind("034 - Weapons", "TrailSpeed", 1.2f,
+                new ConfigDescription("Hand speed at which the trail starts, in metres per "
+                    + "second. Below the attack threshold on purpose: a trail that appears "
+                    + "only once the hit registers is too late to read as motion.",
+                    new AcceptableValueRange<float>(0.2f, 6f)));
+            CfgTrailHold = Config.Bind("034 - Weapons", "TrailHold", 0.25f,
+                new ConfigDescription("How long the trail keeps emitting after the hand slows.",
+                    new AcceptableValueRange<float>(0.05f, 1f)));
             CfgSwingThreshold = Config.Bind("034 - Weapons", "SwingThreshold", 4.0f,
                 new ConfigDescription("Hand speed that triggers a swing, in m/s. Lower is more sensitive, at the risk of "
                     + "unintended swings.",

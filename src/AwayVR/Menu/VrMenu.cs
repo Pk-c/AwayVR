@@ -66,6 +66,9 @@ namespace AwayVR.Menu
             _items.Add(new SectionItem("Weapon"));
             _items.Add(new FloatItem("Swing threshold", Plugin.CfgSwingThreshold,
                 0.3f, 6f, 0.08f, 2.0f, 0.05f, "0.00", " m/s"));
+            _items.Add(new BoolItem("Weapon trail", Plugin.CfgWeaponTrail));
+            _items.Add(new FloatItem("Trail speed", Plugin.CfgTrailSpeed,
+                0.20f, 6.00f, 0.05f, 1.0f, 0.05f, "0.00", " m/s"));
             _items.Add(new BoolItem("Power from motion", Plugin.CfgGrenadePowerFromMotion));
             _items.Add(new FloatItem("Throw power min", Plugin.CfgGrenadePowerMin,
                 0.05f, 1.00f, 0.02f, 0.5f, 0.01f, "0.00", "x"));
@@ -88,7 +91,7 @@ namespace AwayVR.Menu
             _items.Add(new BoolItem("No global fog", Plugin.CfgDisableGlobalFog));
             _items.Add(new BoolItem("No blink effect", Plugin.CfgDisableBlink));
             _items.Add(new BoolItem("No temporal AA", Plugin.CfgDisableTemporalAA));
-            _items.Add(new BoolItem("Weapons camera off", Plugin.CfgWeaponsCameraOff));
+            _items.Add(new BoolItem("Character effects", Plugin.CfgCharacterEffects));
             _items.Add(new BoolItem("Disable bloom", Plugin.CfgDisableBloom));
             _items.Add(new BoolItem("Force anisotropic", Plugin.CfgAnisotropic));
             _items.Add(new CascadeItem("Shadow cascades"));

@@ -100,7 +100,7 @@ namespace AwayVR
 
         public static void Sweep(bool noBloom, bool noGrading, bool noTemporalAA,
                                  bool noOcclusion, bool noFog, bool noDepthOfField,
-                                 bool noBlink)
+                                 bool noBlink, bool noCharacterEffects)
         {
             foreach (var cam in UnityEngine.Object.FindObjectsOfType<Camera>())
             {
@@ -127,7 +127,12 @@ namespace AwayVR
                     if (n == "FxPro") { ApplyLens(c, t, noDepthOfField); continue; }
 
                     bool want;
-                    if (n.IndexOf("Bloom", StringComparison.OrdinalIgnoreCase) >= 0)
+                    // The per-character full-screen washes - the mechanic's red, the
+                    // magician's cracked glasses. Tested first so it wins over the colour
+                    // grading rule, which would otherwise claim WeaponCameraColorFilters.
+                    if (noCharacterEffects && n.StartsWith("WeaponCamera", StringComparison.Ordinal))
+                        want = false;
+                    else if (n.IndexOf("Bloom", StringComparison.OrdinalIgnoreCase) >= 0)
                         want = !noBloom;
                     else if (n.IndexOf("ColorFilters", StringComparison.OrdinalIgnoreCase) >= 0
                              || n.IndexOf("Lut", StringComparison.OrdinalIgnoreCase) >= 0)
