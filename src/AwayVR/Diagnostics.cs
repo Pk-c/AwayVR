@@ -617,11 +617,11 @@ namespace AwayVR
                 // layer is missing from the camera mask. We settle it here.
                 var camC = VrManager.MainCamera;
                 int layer = c.gameObject.layer;
-                string nomLayer = LayerMask.LayerToName(layer);
+                string layerName = LayerMask.LayerToName(layer);
                 bool rendered = camC != null && (camC.cullingMask & (1 << layer)) != 0;
 
                 sb.AppendLine("      layer=" + layer
-                              + (string.IsNullOrEmpty(nomLayer) ? "" : " '" + nomLayer + "'")
+                              + (string.IsNullOrEmpty(layerName) ? "" : " '" + layerName + "'")
                               + "  in camera mask: " + (rendered ? "YES" : "NO")
                               + "  sortingOrder=" + c.sortingOrder
                               + "  worldCamera=" + (c.worldCamera != null ? c.worldCamera.name : "-")

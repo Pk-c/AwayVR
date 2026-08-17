@@ -113,7 +113,7 @@ namespace AwayVR.Menu
 
             _items.Add(new SectionItem("System"));
             _items.Add(new BoolItem("FPS counter", Plugin.CfgFpsCounter));
-            _items.Add(new ActionItem("Reset all", "left/right", Reinitialiser));
+            _items.Add(new ActionItem("Reset all", "left/right", ResetAll));
         }
 
         private int FirstSelectable()
@@ -222,7 +222,7 @@ namespace AwayVR.Menu
                     VrBindings.Set((VrBindings.Action)_capture, t);
                     Plugin.Log.LogInfo("Binding " + (VrBindings.Action)_capture + " = " + t);
                     _capture = -1;
-                    MarquerModifie();
+                    MarkDirty();
                 }
                 return;
             }
@@ -299,7 +299,7 @@ namespace AwayVR.Menu
             {
                 // Continuous setting: deflection drives a rate, not a step.
                 item.Analog(h, Time.unscaledDeltaTime);
-                if (Mathf.Abs(h) >= 0.02f) MarquerModifie();
+                if (Mathf.Abs(h) >= 0.02f) MarkDirty();
                 return;
             }
 
@@ -315,7 +315,7 @@ namespace AwayVR.Menu
                         _selected = 0;
                         _scrollTop = 0;
                     }
-                    else { item.Step(h > 0f ? 1 : -1); MarquerModifie(); }
+                    else { item.Step(h > 0f ? 1 : -1); MarkDirty(); }
                 }
             }
             else _hHeld = false;
@@ -336,7 +336,7 @@ namespace AwayVR.Menu
         /// times a second while adjusting a value with the stick.
         /// </summary>
         /// <summary>Resets every setting to its default, then saves.</summary>
-        private static void Reinitialiser()
+        private static void ResetAll()
         {
             int n = 0;
             foreach (var kv in Plugin.Instance.Config)
@@ -351,7 +351,7 @@ namespace AwayVR.Menu
             if (mgr != null) mgr.ReapplyScene();
         }
 
-        private void MarquerModifie()
+        private void MarkDirty()
         {
             _sauvegardeA = Time.unscaledTime + 1.5f;
         }
@@ -426,8 +426,8 @@ namespace AwayVR.Menu
         /// <summary>Swing state: saves guessing why a swing is not registering.</summary>
         private static string Hint()
         {
-            string arme = Swing.MeleeEquipped ? "melee (swing active)" : "ranged (trigger)";
-            return "weapon: " + arme + "     hand: " + Swing.Speed.ToString("0.0") + " m/s"
+            string kind = Swing.MeleeEquipped ? "melee (swing active)" : "ranged (trigger)";
+            return "weapon: " + kind + "     hand: " + Swing.Speed.ToString("0.0") + " m/s"
                    + "     grip: " + Weapons.GripInfo() + "\n"
                    + "up/down  select       left/right  adjust       click both sticks  close";
         }

@@ -148,7 +148,7 @@ namespace AwayVR
                 "Forces anisotropic filtering on every texture. The game's preset only enables "
                 + "it per texture, and its textures mostly do not ask for it, so floors and "
                 + "walls blur at a grazing angle. Close to free.");
-            CfgShadowCascades = Config.Bind("06 - Visuals", "ShadowCascades", 4,
+            CfgShadowCascades = Config.Bind("06 - Visuals", "ShadowCascades", 2,
                 new ConfigDescription("Directional shadow cascades. More cascades over the "
                     + "same distance means sharper shadows near the player.",
                     new AcceptableValueList<int>(1, 2, 4)));
@@ -169,7 +169,7 @@ namespace AwayVR
                 "Switches off the game's temporal anti-aliasing. It keeps a single frame of "
                 + "history per camera, which in stereo means each eye is blended with the "
                 + "other one - the ghosting. Leave it on unless you want to see the effect.");
-            CfgDisableOcclusion = Config.Bind("06 - Visuals", "DisableAmbientOcclusion", true,
+            CfgDisableOcclusion = Config.Bind("06 - Visuals", "DisableAmbientOcclusion", false,
                 "Switches off Amplify Occlusion. It rebuilds world positions from the depth "
                 + "buffer using the camera's single set of matrices, so in stereo its dark "
                 + "contours land beside the geometry rather than on it - a shadow copy of the "
@@ -183,7 +183,7 @@ namespace AwayVR
                 + "amounts are set to zero rather than the effects switched off, so their "
                 + "full-screen pass keeps rewriting the target - switching them off left it "
                 + "unwritten, which is the stale frame that used to bleed through.");
-            CfgDisableBlink = Config.Bind("06 - Visuals", "DisableBlinkEffect", true,
+            CfgDisableBlink = Config.Bind("06 - Visuals", "DisableBlinkEffect", false,
                 "Switches off the eyelid-blink transition, which bends the whole screen "
                 + "through a curvature term and only stops when its fade completes.");
             CfgCharacterEffects = Config.Bind("06 - Visuals", "CharacterEffects", true,
@@ -192,7 +192,7 @@ namespace AwayVR
                 + "them off. Off leaves the effects' host camera alone; only the components "
                 + "are switched off, and the game re-enables them on a swap so the sweep "
                 + "keeps forcing them.");
-            CfgWeaponsCameraOff = Config.Bind("06 - Visuals", "WeaponsCameraOff", true,
+            CfgWeaponsCameraOff = Config.Bind("06 - Visuals", "WeaponsCameraOff", false,
                 "Disables Weapons_Camera instead of leaving it running blind, moving its "
                 + "per-character effects onto the main camera first so nothing is lost. The "
                 + "camera renders nothing and clears depth only, so its colour buffer holds "
@@ -319,7 +319,7 @@ namespace AwayVR
 
             CfgRecenterKey = Config.Bind("04 - Keys", "Recenter", KeyCode.F9, "Recentres the view.");
             CfgDiagKey = Config.Bind("04 - Keys", "Diagnostics", KeyCode.F10, "Writes a scene report to the log.");
-            CfgVerbose = Config.Bind("04 - Keys", "Verbose", true, "Verbose logging.");
+            CfgVerbose = Config.Bind("04 - Keys", "Verbose", false, "Verbose logging.");
             CfgDialogCapture = Config.Bind("035 - HUD", "DialogCapture", true,
                 "Captures the IMGUI drawing of the dialogues, invisible in VR, and shows it on a "
                 + "panel in front of the player.");
@@ -371,16 +371,16 @@ namespace AwayVR
             CfgGrenadeFromHand = Config.Bind("034 - Weapons", "GrenadeFromHand", true,
                 "Throws the grenade from the left hand, in the direction it points, "
                 + "instead of from the camera.");
-            CfgGrenadeScale = Config.Bind("034 - Weapons", "GrenadeScale", 1.0f,
+            CfgGrenadeScale = Config.Bind("034 - Weapons", "GrenadeScale", 1.3f,
                 new ConfigDescription("Scale of the grenade held in the hand.",
                     new AcceptableValueRange<float>(0.05f, 5f)));
-            CfgGrenadeOffX = Config.Bind("034 - Weapons", "GrenadeOffsetX", 0f,
+            CfgGrenadeOffX = Config.Bind("034 - Weapons", "GrenadeOffsetX", -0.055f,
                 new ConfigDescription("Grenade offset in the hand, sideways, in metres.",
                     new AcceptableValueRange<float>(-0.5f, 0.5f)));
-            CfgGrenadeOffY = Config.Bind("034 - Weapons", "GrenadeOffsetY", 0f,
+            CfgGrenadeOffY = Config.Bind("034 - Weapons", "GrenadeOffsetY", 0.5f,
                 new ConfigDescription("Grenade offset in the hand, vertical, in metres.",
                     new AcceptableValueRange<float>(-0.5f, 0.5f)));
-            CfgGrenadeOffZ = Config.Bind("034 - Weapons", "GrenadeOffsetZ", 0f,
+            CfgGrenadeOffZ = Config.Bind("034 - Weapons", "GrenadeOffsetZ", 0.14f,
                 new ConfigDescription("Grenade offset in the hand, depth, in metres.",
                     new AcceptableValueRange<float>(-0.5f, 0.5f)));
             CfgGrenadeGesture = Config.Bind("034 - Weapons", "GrenadeGesture", true,
@@ -440,7 +440,7 @@ namespace AwayVR
             CfgProbe = Config.Bind("04 - Keys", "ControllerProbe", false,
                 "Logs every controller button and axis as it changes, per device. The "
                 + "merged reads Unity offers mix the two hands and hide which one fired.");
-            CfgTraceInput = Config.Bind("05 - VR bindings", "TraceInput", true,
+            CfgTraceInput = Config.Bind("05 - VR bindings", "TraceInput", false,
                 "Logs every VR action that changes state, with its binding. Used to tell an input "
                 + "that never reports apart from an action the game ignores.");
             CfgAxisThreshold = Config.Bind("05 - VR bindings", "AxisThreshold", 0.55f,

@@ -7,6 +7,9 @@ obj/
 # Game files: NEVER publish these, they belong to the publisher
 *.dll
 !lib/**/*.dll
+
+# Redistributable third-party binaries, licences shipped alongside them
+!packaging/third_party/*.dll
 globalgamemanagers
 globalgamemanagers.orig
 Away_Data/

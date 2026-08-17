@@ -116,9 +116,9 @@ namespace AwayVR
         {
             "Attack (right trigger)", "Guard (right grip)", "Jump / confirm (A)",
             "Run (left stick click)",
-            "Next character (right stick down / X)", "Grenade (left grip)", "Diary (Y)",
-            "Pause menu (B)", "Next tab (right trigger)",
-            "Cancel (B)",
+            "Next character (right stick down / B)", "Grenade (left grip)", "Diary (X)",
+            "Pause menu (Y)", "Next tab (right trigger)",
+            "Cancel (Y)",
             "VR settings (both stick clicks)", "Show HUD (left trigger)",
             "Previous character (right stick up)"
         };
@@ -138,13 +138,13 @@ namespace AwayVR
             "OVR:R7",           // Jump/confirm  A, read through the bridge
             "L:8",              // Run           left stick click
             // Slots_Handler reads Skip_Up: in this game the weapon IS the character, so
-            // this is the character swap. The stick and X both do it.
-            "AX-:RightStickOnlyY|OVR:L7",  // SwitchWeapon
+            // this is the character swap. The stick and B both do it.
+            "AX-:RightStickOnlyY|R:0",  // SwitchWeapon
             "AX:AwayVR_GripL",  // Grenade       left grip
-            "L:2",              // Map           Y -> "MAP"
-            "R:0",              // GameMenu      B -> "Cancel", in-game pause
+            "OVR:L7",           // Map           X, read through the bridge
+            "L:2",              // GameMenu      Y -> "Cancel", in-game pause
             "R:15",             // NextTab       right trigger (menus only)
-            "R:0",              // Cancel        same command as GameMenu (see Remap)
+            "L:2",              // Cancel        same command as GameMenu (see Remap)
             "L:8+R:9",          // VrSettings    both stick clicks
 
             // The HUD is on the left TRIGGER, and the right grip no longer raises it: guard

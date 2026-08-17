@@ -41,7 +41,7 @@ namespace AwayVR
         /// Objects detached from the camera whose bounds we could not measure yet: their
         /// renderer was not active at adoption time. We try again.
         /// </summary>
-        private static readonly System.Collections.Generic.List<Transform> _aNormaliser =
+        private static readonly System.Collections.Generic.List<Transform> _toNormalise =
             new System.Collections.Generic.List<Transform>();
 
         /// <summary>Full-screen quads moved onto a virtual screen, so they can be toggled.</summary>
@@ -231,7 +231,7 @@ namespace AwayVR
             WeaponEffects.Forget();
             Grenades.Forget();
             RoomScale.Forget();
-            _aNormaliser.Clear();
+            _toNormalise.Clear();
             _screens.Clear();
             StartCoroutine(SetupSceneDeferred(scene.name));
         }
@@ -364,8 +364,8 @@ namespace AwayVR
                 // We keep the local values: the object ends up straight ahead of the rig,
                 // rather than frozen wherever the head happened to be at adoption time.
                 child.SetParent(Rig, false);
-                if (!NormalizeIfFullscreen(child, n) && !_aNormaliser.Contains(child))
-                    _aNormaliser.Add(child);
+                if (!NormalizeIfFullscreen(child, n) && !_toNormalise.Contains(child))
+                    _toNormalise.Add(child);
             }
         }
 
@@ -498,11 +498,11 @@ namespace AwayVR
         /// <summary>Another attempt at the objects whose bounds came back empty.</summary>
         private void RetryNormalize()
         {
-            for (int i = _aNormaliser.Count - 1; i >= 0; i--)
+            for (int i = _toNormalise.Count - 1; i >= 0; i--)
             {
-                var t = _aNormaliser[i];
-                if (t == null) { _aNormaliser.RemoveAt(i); continue; }
-                if (NormalizeIfFullscreen(t, t.name)) _aNormaliser.RemoveAt(i);
+                var t = _toNormalise[i];
+                if (t == null) { _toNormalise.RemoveAt(i); continue; }
+                if (NormalizeIfFullscreen(t, t.name)) _toNormalise.RemoveAt(i);
             }
         }
 

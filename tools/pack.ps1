@@ -72,8 +72,18 @@ Copy-Relative "doorstop_config.ini"
 Copy-Relative ".doorstop_version"
 Copy-Relative "BepInEx\core"
 
-# OpenVR runtime, redistributable (Valve's BSD-3 licence).
-Copy-Relative "Away_Data\Plugins\openvr_api.dll"
+# OpenVR runtime, redistributable under Valve's BSD-3 licence. Taken from the repository
+# rather than from the game folder so that a fresh clone can build the archive. Its licence
+# travels with it: BSD-3 requires the notice to accompany a binary redistribution.
+$vendored = "$root\packaging\third_party\openvr_api.dll"
+$openvrDst = Join-Path $stage "Away_Data\Plugins\openvr_api.dll"
+New-Item -ItemType Directory -Force -Path (Split-Path $openvrDst) | Out-Null
+if (Test-Path $vendored) {
+    Copy-Item $vendored $openvrDst -Force
+} else {
+    Write-Host "  packaging\third_party\openvr_api.dll missing, falling back to the game folder"
+    Copy-Relative "Away_Data\Plugins\openvr_api.dll"
+}
 
 Copy-Relative "Away_Data\globalgamemanagers"
 Copy-Relative "Away_Data\globalgamemanagers.orig"
@@ -85,8 +95,18 @@ Copy-Item $dll (Join-Path $stage "BepInEx\plugins\AwayVR.dll") -Force
 # defaults from the code. Shipping one would freeze settings that have changed often, and
 # would stop players picking up new defaults when the mod is updated.
 
-Copy-Item "$root\packaging\uninstall.bat" (Join-Path $stage "uninstall.bat") -Force
+Copy-Item "$root\packaging\uninstall VR.bat" (Join-Path $stage "uninstall VR.bat") -Force
 Copy-Item "$root\packaging\README.txt" (Join-Path $stage "README.txt") -Force
+
+# Licence notices, required by the licences themselves rather than as a courtesy.
+$lic = Join-Path $stage "licenses"
+New-Item -ItemType Directory -Force -Path $lic | Out-Null
+Copy-Item "$root\packaging\third_party\openvr-LICENSE.txt" (Join-Path $lic "openvr-LICENSE.txt") -Force
+Copy-Item "$root\LICENSE" (Join-Path $lic "AwayVR-LICENSE.txt") -Force
+
+# BepInEx ships its own licence in the release archive; carry it if it is there.
+$bepLic = Join-Path $GameDir "BepInEx\LICENSE"
+if (Test-Path $bepLic) { Copy-Item $bepLic (Join-Path $lic "BepInEx-LICENSE.txt") -Force }
 
 # --- archive ---
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null

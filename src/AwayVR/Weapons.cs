@@ -40,7 +40,7 @@ namespace AwayVR
         /// </summary>
         private static bool _holderChecked;
 
-        private static void VerifierNouveauPorteArme(bool log)
+        private static void ReleaseStaleHolder(bool log)
         {
             if (_root == null || _anchor == null) return;
 
@@ -54,12 +54,12 @@ namespace AwayVR
             foreach (var c in Object.FindObjectsOfType<weapon_position>())
             {
                 if (c == null) continue;
-                if (Detache(c.transform, log)) return;
+                if (ReleaseIfReplaced(c.transform, log)) return;
             }
             foreach (var c in Object.FindObjectsOfType<weapons_sway>())
             {
                 if (c == null) continue;
-                if (Detache(c.transform, log)) return;
+                if (ReleaseIfReplaced(c.transform, log)) return;
             }
         }
 
@@ -68,7 +68,7 @@ namespace AwayVR
         /// a NEW one - neither ours nor anything under our anchor - in which case ours is
         /// handed back before the two draw at once.
         /// </summary>
-        private static bool Detache(Transform from, bool log)
+        private static bool ReleaseIfReplaced(Transform from, bool log)
         {
             Transform holder = null;
             for (var p = from; p != null; p = p.parent)
@@ -78,7 +78,7 @@ namespace AwayVR
                 if (p.name == "Hide_W_y_n") { holder = p; break; }
             }
             if (holder == null || holder == _root) return false;
-            if (EstSous(holder, _anchor)) return false;
+            if (IsUnder(holder, _anchor)) return false;
 
             if (log || Plugin.CfgVerbose.Value)
                 Plugin.Log.LogInfo("New weapon holder detected: releasing the old one.");
@@ -87,7 +87,7 @@ namespace AwayVR
             return true;
         }
 
-        private static bool EstSous(Transform t, Transform parent)
+        private static bool IsUnder(Transform t, Transform parent)
         {
             for (var p = t; p != null; p = p.parent)
                 if (p == parent) return true;
@@ -131,7 +131,7 @@ namespace AwayVR
 
         public static void Apply(WeaponAttachMode mode, bool log)
         {
-            VerifierNouveauPorteArme(log);
+            ReleaseStaleHolder(log);
 
             var root = FindRoot();
             if (root == null) return;
@@ -236,7 +236,7 @@ namespace AwayVR
         /// and off during play; including them gave a nonsensical grip point, and above all
         /// an unstable one.
         /// </summary>
-        private static readonly string[] Parasites =
+        private static readonly string[] Decorations =
         {
             "fx", "blink", "sphere", "torus", "shield", "sprite", "particle",
             "glow", "light", "trail", "smoke", "fire", "ember", "flame"
@@ -257,7 +257,7 @@ namespace AwayVR
 
                 var n = r.name.ToLowerInvariant();
                 bool parasite = false;
-                foreach (var f in Parasites)
+                foreach (var f in Decorations)
                     if (n.IndexOf(f) >= 0) { parasite = true; break; }
                 if (parasite) continue;
 
@@ -417,15 +417,15 @@ namespace AwayVR
                 if (!r.enabled || !r.gameObject.activeInHierarchy) continue;
 
                 int layer = r.gameObject.layer;
-                string nomLayer = LayerMask.LayerToName(layer);
-                bool arme = nomLayer == "player_weapons"
+                string layerName = LayerMask.LayerToName(layer);
+                bool isWeapon = layerName == "player_weapons"
                             || Hierarchy.Path(r.transform).IndexOf("Hide_W_y_n",
                                    System.StringComparison.OrdinalIgnoreCase) >= 0;
-                if (!arme) continue;
-                if (_anchor != null && EstSous(r.transform, _anchor)) continue;
+                if (!isWeapon) continue;
+                if (_anchor != null && IsUnder(r.transform, _anchor)) continue;
 
                 sb.AppendLine("  " + Hierarchy.Path(r.transform)
-                              + "   layer=" + layer + " '" + nomLayer + "'"
+                              + "   layer=" + layer + " '" + layerName + "'"
                               + "  size=" + r.bounds.size.ToString("0.00"));
                 if (++n >= 25) { sb.AppendLine("  ... (truncated)"); break; }
             }

@@ -1,4 +1,4 @@
-AwayVR — a VR mod for AWAY: Journey to the Unexpected
+AwayVR - a VR mod for AWAY: Journey to the Unexpected
 =====================================================
 
 INSTALLATION
@@ -12,8 +12,9 @@ SteamVR must be running and the headset on before you start the game.
 
 UNINSTALLING
 ------------
-Double-click uninstall.bat in the game folder. It restores the original
-configuration file and removes every file that was added.
+Double-click "uninstall VR.bat" in the game folder. It restores the original
+configuration file, removes every file the mod added, and finally deletes
+itself - nothing of the mod is left behind.
 
 
 WHAT THE ARCHIVE CONTAINS
@@ -44,28 +45,48 @@ WHAT THE ARCHIVE CONTAINS
 
 CONTROLS
 --------
-  Right trigger .................. attack (swinging your arm also works)
+  Right trigger .................. attack
+  Swing your arm ................. attack, with melee weapons
   Right grip ..................... guard
-  Left grip ...................... switch character
-  Left trigger ................... grenade
-  Right face button .............. jump, confirm, advance dialogue
-  Left face button ............... open/close the diary
+  Left grip ...................... grenade: squeeze to arm, release to throw
+  Left trigger ................... show the HUD while held
+
+  A .............................. jump, confirm, advance dialogue
+  B .............................. next character
+  X .............................. open/close the diary
+  Y .............................. pause menu, cancel
+
   Left stick click ............... run
-  Right stick click .............. menu, cancel
+  Right stick down / up .......... next / previous character
   Right trigger (in a menu) ...... next tab
-  Both grips ..................... show the HUD
   Both stick clicks .............. the mod's VR settings
 
-No SteamVR configuration is required.
+No SteamVR configuration is required. A and X are read from OpenVR directly:
+Unity's legacy input layer gives those two buttons no index at all, which is why
+most Unity VR mods cannot use them.
+
+The grenade is thrown from your hand, in the direction of the throw, and as hard
+as you actually threw it.
 
 
 SETTINGS
 --------
 The VR settings open in game by clicking both sticks: turning, world scale,
-player height, weapon placement, HUD.
+player height, weapon placement, HUD size and distance, shadow distance, render
+scale, and a frame-rate counter.
 
-They are stored in BepInEx\config\fr.awayvr.plugin.cfg, which also holds finer
-options that are not exposed in the menu.
+  Character effects
+        The per-character full-screen washes - the mechanic's red, the magician's
+        cracked glasses. Strong in a headset; switch them off if they bother you.
+
+  Render scale
+        Supersampling. The game renders deferred, where MSAA does not exist, so
+        this is the only anti-aliasing available. 1.3 by default; lower it if the
+        frame rate suffers.
+
+Everything is stored in BepInEx\config\fr.awayvr.plugin.cfg, which also holds
+finer options that are not exposed in the menu - grenade offsets, swing
+threshold, fade timings, and the input bindings.
 
 
 TROUBLESHOOTING
@@ -82,9 +103,18 @@ The BepInEx\LogOutput.log file says what happened.
   "XR activation failed"
         SteamVR is not running, or the headset is not being detected.
 
+  Input behaving oddly
+        Set OpenVrBridge to false in the config file, with the game closed. The
+        mod then falls back to Unity's own input and loses only A and X.
+
 
 LICENCES
 --------
+Full texts are in the licenses\ folder of this archive.
+
 BepInEx    LGPL-2.1        https://github.com/BepInEx/BepInEx
 openvr_api BSD-3-Clause    https://github.com/ValveSoftware/openvr
 AwayVR     see LICENSE     https://github.com/Pk-c/AwayVR
+
+openvr_api.dll is redistributed unmodified under the BSD-3-Clause licence, whose
+text accompanies it as that licence requires.
