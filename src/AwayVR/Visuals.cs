@@ -25,6 +25,7 @@ namespace AwayVR
     {
         public static void Apply(bool log)
         {
+
             // ForceEnable, not Enable. The preset already says Enable, which only honours the
             // per-texture flag — and the game's textures largely do not set it. Forcing it is
             // what actually sharpens floors and walls seen at a grazing angle, and it is close
@@ -46,6 +47,10 @@ namespace AwayVR
             var res = Plugin.CfgShadowResolution.Value;
             if (QualitySettings.shadowResolution != res)
                 QualitySettings.shadowResolution = res;
+
+            float dist = Plugin.CfgShadowDistance.Value;
+            if (!Mathf.Approximately(QualitySettings.shadowDistance, dist))
+                QualitySettings.shadowDistance = dist;
 
             float lod = Plugin.CfgLodBias.Value;
             if (!Mathf.Approximately(QualitySettings.lodBias, lod))

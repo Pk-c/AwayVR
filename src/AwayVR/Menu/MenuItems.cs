@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using BepInEx.Configuration;
 using UnityEngine;
@@ -205,15 +205,35 @@ namespace AwayVR.Menu
         }
     }
 
+    /// <summary>
+    /// Walks the render layers, hiding one at a time. Left and right step through them, and
+    /// either end of the walk brings everything back.
+    /// </summary>
+    internal class LayerBisectItem : MenuItem
+    {
+        public LayerBisectItem(string label) { Label = label; }
+        public override string ValueText { get { return LayerBisect.Label; } }
+        public override void Step(int dir) { LayerBisect.Step(dir); }
+    }
+
+    /// <summary>Walks the scene''s root objects, hiding the renderers of one at a time.</summary>
+    internal class RootBisectItem : MenuItem
+    {
+        public RootBisectItem(string label) { Label = label; }
+        public override string ValueText { get { return RootBisect.Label; } }
+        public override void Step(int dir) { RootBisect.Step(dir); }
+    }
+
     internal enum MenuPage { None, Main, Bindings }
 
     /// <summary>Opens the input assignment page.</summary>
     internal class BindingsItem : MenuItem
     {
         public BindingsItem(string label) { Label = label; }
-        public override string ValueText { get { return "›"; } }
+        public override string ValueText { get { return "â€º"; } }
         public override MenuPage Activate() { return MenuPage.Bindings; }
     }
 
 
 }
+

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace AwayVR.Menu
@@ -50,7 +50,7 @@ namespace AwayVR.Menu
             _items.Clear();
 
             // Deliberately a SHORT list. Every setting still exists and is still read; what
-            // was taken out of the menu is what gets set once and never touched again — the
+            // was taken out of the menu is what gets set once and never touched again â€” the
             // weapon's position in the hand, the grenade's offsets, the arming thresholds.
             // Those live in the config file, where they belong: a menu you scroll through
             // hides the four or five settings that are genuinely worth changing.
@@ -91,6 +91,12 @@ namespace AwayVR.Menu
             _items.Add(new BoolItem("Weapons camera off", Plugin.CfgWeaponsCameraOff));
             _items.Add(new BoolItem("Disable bloom", Plugin.CfgDisableBloom));
             _items.Add(new BoolItem("Force anisotropic", Plugin.CfgAnisotropic));
+            _items.Add(new FloatItem("Shadow distance", Plugin.CfgShadowDistance,
+                10f, 200f, 2f, 40f, 1f, "0", " m"));
+            _items.Add(new FloatItem("LOD bias", Plugin.CfgLodBias,
+                0.50f, 10.00f, 0.10f, 1.0f, 0.05f, "0.0", "x"));
+            _items.Add(new LayerBisectItem("Hide layer"));
+            _items.Add(new RootBisectItem("Hide object"));
 
             _items.Add(new SectionItem("Interface"));
             _items.Add(new BoolItem("HUD always visible", Plugin.CfgHudAlwaysVisible));
@@ -425,3 +431,4 @@ namespace AwayVR.Menu
         }
     }
 }
+

@@ -104,6 +104,41 @@ namespace AwayVR
             new Dictionary<string, FieldInfo>();
 
         /// <summary>
+        /// Takes every render-texture camera out of stereo.
+        ///
+        /// A camera that draws into a RenderTexture has nothing to do with the headset's
+        /// eyes, yet the game leaves several of them at stereoTargetEye = Both. The minimap
+        /// is the one that bites: it renders the world from above into its own texture, with
+        /// clearFlags = Nothing, and being a stereo camera it is handed the EYE texture as
+        /// well. Nothing clears it, so its top-down view of the scenery is left lying in the
+        /// eye buffer — a semi-transparent slab of geometry, offset from what you are looking
+        /// at, exactly as reported.
+        ///
+        /// The correlation is what proves it: UI_hide_map shows the minimap outdoors and
+        /// hides it in caves. Desert glitches, dungeon does not, and no rendering setting
+        /// changes either — because none of them touch a camera that is not part of the
+        /// scene's effect chain at all. This is the same defect the first world had, in a new
+        /// guise: back then the minimap's RenderTexture reached the eyes through a
+        /// screen-space canvas, and that route is now handled; this is the camera itself.
+        ///
+        /// Applied to every render-texture camera rather than to the minimap by name, because
+        /// the rule is general: off-screen rendering is monoscopic by definition.
+        /// </summary>
+        public static void KeepRenderTextureCamerasMono()
+        {
+            foreach (var cam in UnityEngine.Object.FindObjectsOfType<Camera>())
+            {
+                if (cam == null || cam.targetTexture == null) continue;
+                if (cam.stereoTargetEye == StereoTargetEyeMask.None) continue;
+
+                cam.stereoTargetEye = StereoTargetEyeMask.None;
+                Plugin.Log.LogInfo("Render-texture camera taken out of stereo: "
+                                   + Hierarchy.Path(cam.transform)
+                                   + " (" + cam.targetTexture.name + ")");
+            }
+        }
+
+        /// <summary>
         /// The two full-screen passes that reconstruct the scene from the camera's MONO
         /// matrices, and therefore cannot line up in stereo.
         ///

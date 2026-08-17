@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -78,7 +78,7 @@ namespace AwayVR
         /// LateUpdate is too early: Unity re-latches the head pose after it, so anything that
         /// compensates for a head or hand rotation there works from a value one frame stale.
         /// That is what made the HUD shimmer when nodding and the grenade tremble in the
-        /// hand — the same defect, seen twice.
+        /// hand â€” the same defect, seen twice.
         ///
         /// Only placement runs here. The damping and every other decision stay in LateUpdate,
         /// because they integrate over deltaTime and would advance twice per frame.
@@ -120,7 +120,7 @@ namespace AwayVR
             // refuses to initialise without so much as an error message, which makes the
             // failure very hard to read: so we name it here.
             var gfx = SystemInfo.graphicsDeviceType;
-            Log("Graphics API: " + gfx + " — " + SystemInfo.graphicsDeviceVersion);
+            Log("Graphics API: " + gfx + " â€” " + SystemInfo.graphicsDeviceVersion);
             if (gfx != GraphicsDeviceType.Direct3D11)
             {
                 Err("Unity 2017 VR requires Direct3D 11, but the game is running on " + gfx + ".");
@@ -180,7 +180,7 @@ namespace AwayVR
         /// <summary>
         /// Replaces Unity's default skybox with a black background.
         ///
-        /// Screens with no scenery — the rewards screen after a death, for instance — leave
+        /// Screens with no scenery â€” the rewards screen after a death, for instance â€” leave
         /// Unity's procedural skybox in place. Flat, it goes unnoticed behind the interface;
         /// in VR you end up standing in an empty blue sky, which breaks the scene entirely.
         /// We touch ONLY the default skybox: the ones the game chose itself are intended
@@ -220,6 +220,9 @@ namespace AwayVR
             PlayerBody.Forget();
             VrFade.OnSceneLoaded();
             CameraEffects.ForgetOriginals();
+            LayerBisect.Reset();
+            RootBisect.Reset();
+            Refraction.Forget();
             WeaponEffects.Forget();
             Grenades.Forget();
             RoomScale.Forget();
@@ -406,7 +409,7 @@ namespace AwayVR
         /// Makes the virtual screens follow exactly like the HUD panel.
         ///
         /// The title poster and the menu have to stay together: they are designed to be seen
-        /// as one. So they do not merely use similar settings, they share the SAME source —
+        /// as one. So they do not merely use similar settings, they share the SAME source â€”
         /// GazeFollow for the orientation, and the HUD's own distance and width for the
         /// geometry. Two independent follows, however carefully tuned, always ended up a few
         /// degrees apart, and that is immediately visible.
@@ -474,7 +477,7 @@ namespace AwayVR
 
             // Attached to the shared anchor, world pose preserved: the offset measured here
             // becomes a local one, and the screen will then follow the gaze without us ever
-            // touching its rotation — a quad has a front face, and resetting it to identity
+            // touching its rotation â€” a quad has a front face, and resetting it to identity
             // would flip it.
             child.SetParent(EnsureScreenAnchor(), true);
 
@@ -595,6 +598,9 @@ namespace AwayVR
             // point of their dedicated pass, otherwise they would pick up its effects.
             if (PanelOverlay.Layer >= 0) mask &= ~(1 << PanelOverlay.Layer);
 
+            // Manual bisection, driven from the menu.
+            if (LayerBisect.Current >= 0) mask &= ~(1 << LayerBisect.Current);
+
             if (MainCamera.cullingMask != mask) MainCamera.cullingMask = mask;
         }
 
@@ -606,13 +612,13 @@ namespace AwayVR
         /// different things, and the distinction matters here.
         ///
         /// Its layer is already merged into the main camera, so letting it draw shows the
-        /// weapon a second time, flattened against the screen — the double arm. But simply
+        /// weapon a second time, flattened against the screen â€” the double arm. But simply
         /// disabling the camera turned out to cost far more than it fixed: the game hangs its
-        /// full-screen filters on this very camera —
+        /// full-screen filters on this very camera â€”
         ///
         ///     GameObject.Find("Weapons_Camera").GetComponent&lt;CameraFilterPack_Blur_GaussianBlur&gt;()
         ///
-        /// — and a disabled camera never renders, so its OnRenderImage never runs and every
+        /// â€” and a disabled camera never renders, so its OnRenderImage never runs and every
         /// one of those effects dies with it. That is why the character filters only appeared
         /// after a cutscene: the game re-enabled the camera, and our sweep put it back to
         /// sleep moments later.
@@ -697,7 +703,7 @@ namespace AwayVR
 
             // Panels placed AFTER the head pose has been updated. In Update we computed
             // their position from a pose one frame stale, and the panel shook on every head
-            // movement — the same reason that forces the viewmodel correction to happen here
+            // movement â€” the same reason that forces the viewmodel correction to happen here
             // rather than in Update.
             KeepWeaponsCameraBlind();
 
@@ -715,6 +721,7 @@ namespace AwayVR
             VrFade.Tick();
             Grenades.Tick();
             FpsCounter.Tick();
+            Refraction.Tick();
         }
 
         private void Update()
@@ -751,6 +758,8 @@ namespace AwayVR
                 // copy of the effect. Fixing it once for one world would leave the next one
                 // ghosting exactly as before.
                 CameraEffects.ApplyTemporalAA(Plugin.CfgDisableTemporalAA.Value);
+                Visuals.Apply(false);
+                CameraEffects.KeepRenderTextureCamerasMono();
                 CameraEffects.ApplyStereoBroken(Plugin.CfgDisableOcclusion.Value,
                                                 Plugin.CfgDisableGlobalFog.Value);
                 CameraEffects.ApplyLensEffects(Plugin.CfgDisableDepthOfField.Value,
@@ -761,7 +770,7 @@ namespace AwayVR
                 CanvasTools.Apply(false);
 
                 // Re-evaluated on every sweep, not only at scene setup: the player can
-                // vanish without a scene change — on death the progression screen appears
+                // vanish without a scene change â€” on death the progression screen appears
                 // while InGame would have stayed true, and the HUD there would have demanded
                 // a grip to show up.
                 InGame = Object.FindObjectOfType<
@@ -797,3 +806,5 @@ namespace AwayVR
         }
     }
 }
+
+

@@ -22,6 +22,7 @@ namespace AwayVR
         internal static ConfigEntry<int> CfgShadowCascades;
         internal static ConfigEntry<ShadowResolution> CfgShadowResolution;
         internal static ConfigEntry<float> CfgLodBias;
+        internal static ConfigEntry<float> CfgShadowDistance;
         internal static ConfigEntry<bool> CfgDisableTemporalAA;
         internal static ConfigEntry<bool> CfgDisableOcclusion;
         internal static ConfigEntry<bool> CfgDisableGlobalFog;
@@ -137,6 +138,12 @@ namespace AwayVR
             CfgShadowResolution = Config.Bind("06 - Visuals", "ShadowResolution",
                 ShadowResolution.VeryHigh,
                 "Shadow map resolution. The game's preset stops at High.");
+            CfgShadowDistance = Config.Bind("06 - Visuals", "ShadowDistance", 100f,
+                new ConfigDescription("How far shadows are cast, in metres. The game ships "
+                    + "100. The heaviest single lever in an open area — a desert casts "
+                    + "shadows to the horizon where a dungeon has almost none, which is why "
+                    + "one drops below the headset's refresh rate and the other does not.",
+                    new AcceptableValueRange<float>(10f, 200f)));
             CfgLodBias = Config.Bind("06 - Visuals", "LodBias", 5.0f,
                 new ConfigDescription("Keeps high-detail models in use further away. The game "
                     + "ships 3.0.", new AcceptableValueRange<float>(0.5f, 10f)));

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,6 +20,9 @@ namespace AwayVR
             DumpScale(sb);
             DumpFond(sb);
             DumpCameras(sb);
+            DumpSettings(sb);
+            RootBisect.Dump(sb);
+            Refraction.Dump(sb);
             LayerTools.Dump(sb, VrManager.MainCamera);
             Weapons.Dump(sb);
             Weapons.DumpArmesOrphelines(sb);
@@ -113,6 +116,37 @@ namespace AwayVR
                     sb.AppendLine("      FxPro           : " + CameraEffects.DescribeFxPro(m));
                 }
             }
+        }
+
+        /// <summary>
+        /// The switches that decide what the frame looks like, printed with the frame.
+        ///
+        /// Added after a dump was read against the wrong assumptions: the setting under test
+        /// had been toggled from the in-game menu, which saves on close, so the report showed
+        /// a state nobody had intended. A dump that does not say how it was configured cannot
+        /// be trusted, and every minute spent theorising over one is wasted.
+        /// </summary>
+        private static void DumpSettings(StringBuilder sb)
+        {
+            sb.AppendLine("-- AwayVR effect settings --");
+            sb.AppendLine("  renderScale=" + Plugin.CfgResolutionScale.Value.ToString("0.00")
+                          + "  (live " + UnityEngine.XR.XRSettings.eyeTextureResolutionScale.ToString("0.00") + ")");
+            sb.AppendLine("  weaponsCameraOff=" + Plugin.CfgWeaponsCameraOff.Value
+                          + "  effectsMoved=" + WeaponEffects.Installed);
+            sb.AppendLine("  noOcclusion=" + Plugin.CfgDisableOcclusion.Value
+                          + "  noDepthOfField=" + Plugin.CfgDisableDepthOfField.Value
+                          + "  noGlobalFog=" + Plugin.CfgDisableGlobalFog.Value);
+            sb.AppendLine("  noBlink=" + Plugin.CfgDisableBlink.Value
+                          + "  noTemporalAA=" + Plugin.CfgDisableTemporalAA.Value
+                          + "  noBloom=" + Plugin.CfgDisableBloom.Value
+                          + "  noColorGrading=" + Plugin.CfgDisableColorGrading.Value);
+            sb.AppendLine("  layerBisect=" + (LayerBisect.Current < 0 ? "none"
+                          : LayerBisect.Current + " " + LayerTools.LayerName(LayerBisect.Current)));
+            sb.AppendLine("  aniso=" + UnityEngine.QualitySettings.anisotropicFiltering
+                          + "  cascades=" + UnityEngine.QualitySettings.shadowCascades
+                          + "  shadowRes=" + UnityEngine.QualitySettings.shadowResolution
+                          + "  shadowDist=" + UnityEngine.QualitySettings.shadowDistance.ToString("0")
+                          + "  lodBias=" + UnityEngine.QualitySettings.lodBias.ToString("0.#"));
         }
 
         private static void DumpNodes(StringBuilder sb)
@@ -426,7 +460,7 @@ namespace AwayVR
                     sb.AppendLine("  UI_play_video on " + Hierarchy.Path(c.transform)
                                   + "   actif=" + c.gameObject.activeInHierarchy);
                     sb.AppendLine("      movie = " + (mv as Object == null
-                        ? "<null> — no video assigned"
+                        ? "<null> â€” no video assigned"
                         : ((Object)mv).name));
                 }
             }
@@ -434,7 +468,7 @@ namespace AwayVR
             // The menu's "background video" is not one: Menu_Background picks one of three
             // sets at random and activates it. So it is a scene object rendered by the main
             // camera, and its absence comes down to its layer, its position or the camera
-            // mask — not to our UI capture.
+            // mask â€” not to our UI capture.
             var tBg = HarmonyLib.AccessTools.TypeByName("Menu_Background");
             if (tBg == null)
             {
@@ -608,7 +642,7 @@ namespace AwayVR
 
                 // Visible graphics. The list used to stop at 6, which hid precisely the
                 // elements we were looking for: we raise the limit. We also give the
-                // physical size and the offset from the panel centre — an oversized element,
+                // physical size and the offset from the panel centre â€” an oversized element,
                 // or one pushed out of frame, stands out immediately.
                 int shown = 0;
                 foreach (var g in c.GetComponentsInChildren<Graphic>(false))
@@ -645,3 +679,4 @@ namespace AwayVR
         }
     }
 }
+
