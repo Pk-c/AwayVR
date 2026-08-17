@@ -88,16 +88,21 @@ namespace AwayVR
 
         [HarmonyPatch(typeof(weapons_sword), "OnEnable")]
         [HarmonyPostfix]
-        private static void SwordEnabled()
+        private static void SwordEnabled(weapons_sword __instance)
         {
             _melee = true;
             _meleeKnown = true;
+            Shield.Bind(__instance);
         }
 
         /// <summary>Another sword may still be active, so this only reopens the question.</summary>
         [HarmonyPatch(typeof(weapons_sword), "OnDisable")]
         [HarmonyPostfix]
-        private static void SwordDisabled() { _meleeKnown = false; }
+        private static void SwordDisabled(weapons_sword __instance)
+        {
+            _meleeKnown = false;
+            Shield.Unbind(__instance);
+        }
 
         public static void OnSceneLoaded() { Invalidate(); }
 

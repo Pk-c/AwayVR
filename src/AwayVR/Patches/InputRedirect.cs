@@ -118,7 +118,17 @@ namespace AwayVR.Patches
             { "story_next", "Update" },          // advancing a dialogue, reads "Submit"
             { "XP_scenario", "Update" },         // same on the XP screens
             { "UnityStandardAssets.Characters.FirstPerson.FirstPersonController",
-              "UpdateIsWalking" }                // running
+              "UpdateIsWalking" },               // running
+
+            // The game replaces Unity's input module with its own, and those call
+            // Input.GetButtonDown directly rather than through BaseInput - so patching
+            // BaseInput does nothing for them. This is what validates dialogues and menus.
+            { "MultiPlatformInputModule", "SendSubmitEventToSelectedObject" },
+            { "MultiPlatformInputModule", "ShouldActivateModule" },
+            { "GamePadInputModule", "SendSubmitEventToSelectedObject" },
+            { "GamePadInputModule", "ShouldActivateModule" },
+            { "NoTouchpadInputModule", "HandleSelection" },
+            { "AimerInputModule", "Process" }
         };
 
         /// <summary>
@@ -146,6 +156,24 @@ namespace AwayVR.Patches
             __result = VrBindings.Held(a);
             return false;
         }
+
+        /// <summary>
+        /// Menu validation. Unity's EventSystem reads "Submit" from inside UnityEngine.UI,
+        /// which the transpiler cannot reach - it only rewrites the game's own methods. This
+        /// one prefix covers every input module at once.
+        /// </summary>
+        [HarmonyPatch(typeof(UnityEngine.EventSystems.BaseInput), "GetButtonDown")]
+        [HarmonyPrefix]
+        private static bool BaseInput_GetButtonDown(string buttonName, ref bool __result)
+        {
+            VrBindings.Action a;
+            if (!VrManager.VrActive || !VrBindings.Remap(buttonName, out a)) return true;
+            __result = VrBindings.Down(a);
+            return false;
+        }
+
+        // BaseInput has GetButtonDown but no GetButton in this Unity version: patching one
+        // that does not exist aborts PatchAll, and with it the whole plugin.
 
         public static void Apply(Harmony harmony)
         {

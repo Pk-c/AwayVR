@@ -159,6 +159,8 @@ namespace AwayVR
             QualitySettings.vSyncCount = 0;
             Application.runInBackground = true;
 
+            if (Plugin.CfgOpenVrBridge.Value) OpenVrBridge.Probe();
+
             InputTracking.Recenter();
 
             Log("=== VR ACTIVE ===");
@@ -221,6 +223,9 @@ namespace AwayVR
             GameState.OnSceneLoaded();
             Swing.OnSceneLoaded();
             Trails.Forget();
+            // Shield is NOT cleared here: weapons_sword raises OnEnable while the scene is
+            // still loading, so clearing afterwards wiped the binding it had just made.
+            // A destroyed sword nulls its own reference, which is all the cleanup needed.
             _fpc = null;
             Refraction.Forget();
             WeaponEffects.Forget();
@@ -587,6 +592,8 @@ namespace AwayVR
             // Manual bisection drives the mask itself for the duration of its sweep.
             // Viewmodel pose every frame: the offsets are adjusted live.
             Weapons.Pose();
+            OpenVrBridge.Tick();
+            ControllerProbe.Tick();
 
 
             // Continuous HUD follow. Framerate-independent exponential damping:
@@ -726,6 +733,7 @@ namespace AwayVR
             Grenades.Tick();
             FpsCounter.Tick();
             Trails.Tick();
+            Shield.Tick();
             Refraction.Tick();
         }
 

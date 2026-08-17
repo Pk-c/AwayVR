@@ -44,13 +44,27 @@ namespace AwayVR
         /// plate appeared. We do not wait to discover anything - the cover goes up first, and
         /// the search for the game's plate happens behind it.
         /// </summary>
+        private static bool _sceneCover;
+        private static float _coverDeadline;
+
         public static void OnSceneLoaded()
         {
+            // Cover the view the instant the scene comes up. The game's own BlinkEffect takes
+            // over the transition, but it starts a fraction of a second late and the raw
+            // scene shows through until it does.
+            if (Plugin.CfgSceneCover.Value)
+            {
+                _alpha = 1f;
+                _holdUntil = float.MaxValue;
+                _duration = 0.2f;
+                _sceneCover = true;
+                _coverDeadline = Time.unscaledTime + Plugin.CfgSceneCoverMax.Value;
+            }
+
             // The graphics are destroyed by the load, so every reference goes with them. No
             // fade is raised here: a scene load blanks the view on its own.
             Silenced.Clear();
             _nextScan = 0f;
-            _alpha = 0f;
         }
 
         /// <summary>
@@ -150,6 +164,31 @@ namespace AwayVR
             Flash(0f, Plugin.CfgCharacterFadeDuration.Value);
         }
 
+        /// <summary>
+        /// Holds the cover until the game's blink has started, then hands over. The deadline
+        /// exists because a scene may have no blink at all, and a cover with no end is worse
+        /// than the half second it was hiding.
+        /// </summary>
+        private static void WatchSceneCover()
+        {
+            if (!_sceneCover) return;
+
+            bool handOver = Time.unscaledTime >= _coverDeadline;
+
+            if (!handOver && Time.unscaledTime >= _nextBlinkCheck)
+            {
+                _nextBlinkCheck = Time.unscaledTime + 0.1f;
+                var blink = Object.FindObjectOfType<PostProcess.BlinkEffect>();
+                handOver = blink != null && blink.enabled;
+            }
+
+            if (!handOver) return;
+            _sceneCover = false;
+            _holdUntil = Time.unscaledTime;
+        }
+
+        private static float _nextBlinkCheck;
+
         /// <summary>Creates the surface once, at start-up, ahead of any scene load.</summary>
         public static void Init()
         {
@@ -203,6 +242,7 @@ namespace AwayVR
 
             SilenceGamePlates();
             WatchCharacterSwap();
+            WatchSceneCover();
 
             if (Time.unscaledTime >= _holdUntil && _alpha > 0f)
             {

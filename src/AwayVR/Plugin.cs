@@ -84,6 +84,8 @@ namespace AwayVR
         internal static ConfigEntry<KeyCode> CfgRecenterKey;
         internal static ConfigEntry<KeyCode> CfgDiagKey;
         internal static ConfigEntry<bool> CfgVerbose;
+        internal static ConfigEntry<bool> CfgProbe;
+        internal static ConfigEntry<bool> CfgOpenVrBridge;
         internal static ConfigEntry<float> CfgAxisThreshold;
         internal static ConfigEntry<bool> CfgTraceInput;
         internal static ConfigEntry<bool> CfgDialogCapture;
@@ -91,6 +93,8 @@ namespace AwayVR
         internal static ConfigEntry<float> CfgDialogWidth;
         internal static ConfigEntry<bool> CfgHudAlwaysVisible;
         internal static ConfigEntry<bool> CfgVrFade;
+        internal static ConfigEntry<bool> CfgSceneCover;
+        internal static ConfigEntry<float> CfgSceneCoverMax;
         internal static ConfigEntry<float> CfgFadeDistance;
         internal static ConfigEntry<bool> CfgFadeOnCharacterSwap;
         internal static ConfigEntry<float> CfgCharacterFadeDuration;
@@ -114,6 +118,16 @@ namespace AwayVR
         internal static ConfigEntry<float> CfgHudFadeSpeed;
 
         private Harmony _harmony;
+
+        /// <summary>Applies one patch class, reporting a failure instead of propagating it.</summary>
+        private void PatchSafely(System.Type type)
+        {
+            try { _harmony.PatchAll(type); }
+            catch (System.Exception e)
+            {
+                Log.LogError("Patches in " + type.Name + " were not applied: " + e.Message);
+            }
+        }
 
         private void Awake()
         {
@@ -329,6 +343,14 @@ namespace AwayVR
             CfgVrFade = Config.Bind("035 - HUD", "VrFade", true,
                 "Reproduces the game's screen fades across the whole field of view. Without "
                 + "it they only darken the floating HUD panel and the world stays visible.");
+            CfgSceneCover = Config.Bind("035 - HUD", "SceneCover", true,
+                "Blacks the view the instant a scene comes up, until the game's own blink "
+                + "transition takes over. Without it the raw scene shows for about half a "
+                + "second before the blink starts.");
+            CfgSceneCoverMax = Config.Bind("035 - HUD", "SceneCoverMax", 3.0f,
+                new ConfigDescription("How long the cover may wait for that blink. A scene "
+                    + "may have none, and a cover with no end is worse than what it hides.",
+                    new AcceptableValueRange<float>(0.2f, 10f)));
             CfgFadeDistance = Config.Bind("035 - HUD", "FadeDistance", 0.30f,
                 new ConfigDescription(
                     "Distance of the fade surface, in metres. Close enough to cover the view, "
@@ -336,7 +358,7 @@ namespace AwayVR
                     new AcceptableValueRange<float>(0.15f, 2f)));
             CfgFadeOnCharacterSwap = Config.Bind("035 - HUD", "FadeOnCharacterSwap", true,
                 "Punctuates a character swap with a short fade.");
-            CfgCharacterFadeDuration = Config.Bind("035 - HUD", "CharacterFadeDuration", 0.35f,
+            CfgCharacterFadeDuration = Config.Bind("035 - HUD", "CharacterFadeDuration", 0.7f,
                 new ConfigDescription("Length of that fade, in seconds.",
                     new AcceptableValueRange<float>(0.05f, 2f)));
             CfgStickThreshold = Config.Bind("05 - VR bindings", "StickThreshold", 0.9f,
@@ -410,6 +432,14 @@ namespace AwayVR
             CfgHudFadeSpeed = Config.Bind("035 - HUD", "HudFadeSpeed", 6.0f,
                 new ConfigDescription("Fade-in and fade-out speed.",
                     new AcceptableValueRange<float>(1f, 30f)));
+            CfgOpenVrBridge = Config.Bind("05 - VR bindings", "OpenVrBridge", true,
+                "Reads the controllers from OpenVR directly instead of through Unity's "
+                + "legacy joystick layer, which gives the A and X buttons no index at all. "
+                + "Set to false if anything about input misbehaves - the mod falls back to "
+                + "Unity, and this file can be edited with the game closed.");
+            CfgProbe = Config.Bind("04 - Keys", "ControllerProbe", false,
+                "Logs every controller button and axis as it changes, per device. The "
+                + "merged reads Unity offers mix the two hands and hide which one fired.");
             CfgTraceInput = Config.Bind("05 - VR bindings", "TraceInput", true,
                 "Logs every VR action that changes state, with its binding. Used to tell an input "
                 + "that never reports apart from an action the game ignores.");
@@ -428,12 +458,17 @@ namespace AwayVR
             VrBindings.Init(Config);
 
             _harmony = new Harmony(Guid);
-            _harmony.PatchAll(typeof(Patches.FpcPatches));
-            _harmony.PatchAll(typeof(Patches.InputPatches));
-            _harmony.PatchAll(typeof(Patches.InputRedirect));
-            _harmony.PatchAll(typeof(Grenades));
-            _harmony.PatchAll(typeof(Swing));
-            Patches.InputRedirect.Apply(_harmony);
+
+            // One failing patch must not take the mod down with it. A method that does not
+            // exist in this Unity version makes PatchAll throw, and that exception used to
+            // abort the whole start-up - the game then launched flat, with no VR at all.
+            PatchSafely(typeof(Patches.FpcPatches));
+            PatchSafely(typeof(Patches.InputPatches));
+            PatchSafely(typeof(Patches.InputRedirect));
+            PatchSafely(typeof(Grenades));
+            PatchSafely(typeof(Swing));
+            try { Patches.InputRedirect.Apply(_harmony); }
+            catch (System.Exception e) { Log.LogError("Input redirect failed: " + e.Message); }
             ImguiCapture.Apply(_harmony);
             int n = 0;
             foreach (var m in _harmony.GetPatchedMethods()) n++;

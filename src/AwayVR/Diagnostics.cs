@@ -21,6 +21,7 @@ namespace AwayVR
             DumpFond(sb);
             DumpCameras(sb);
             DumpSettings(sb);
+            OpenVrBridge.Dump(sb);
             RootBisect.Dump(sb);
             Refraction.Dump(sb);
             LayerTools.Dump(sb, VrManager.MainCamera);

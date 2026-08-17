@@ -31,16 +31,27 @@ namespace AwayVR
             /// </summary>
             public int Sign;
 
+            /// <summary>OpenVR button id, read through the bridge. -1 when unused.</summary>
+            public int Ovr;
+
             public Key(bool left, int button)
             {
-                Left = left; Button = button; Axis = null; Sign = 0;
+                Left = left; Button = button; Axis = null; Sign = 0; Ovr = -1;
             }
 
-            public Key(string axis) { Left = false; Button = -1; Axis = axis; Sign = 0; }
+            /// <summary>A button Unity cannot see - A and X live here.</summary>
+            public static Key FromOvr(bool left, int button)
+            {
+                var k = new Key(left, -1);
+                k.Ovr = button;
+                return k;
+            }
+
+            public Key(string axis) { Left = false; Button = -1; Axis = axis; Sign = 0; Ovr = -1; }
 
             public Key(string axis, int sign)
             {
-                Left = false; Button = -1; Axis = axis; Sign = sign;
+                Left = false; Button = -1; Axis = axis; Sign = sign; Ovr = -1;
             }
 
             /// <summary>Cache key: the same axis read two ways must not share an entry.</summary>
@@ -49,10 +60,14 @@ namespace AwayVR
                 get { return (Sign > 0 ? "+" : Sign < 0 ? "-" : "") + Axis; }
             }
 
-            public bool Valid { get { return Button >= 0 || !string.IsNullOrEmpty(Axis); } }
+            public bool Valid
+            {
+                get { return Button >= 0 || Ovr >= 0 || !string.IsNullOrEmpty(Axis); }
+            }
 
             public override string ToString()
             {
+                if (Ovr >= 0) return "OVR:" + (Left ? "L" : "R") + Ovr;
                 if (!string.IsNullOrEmpty(Axis))
                     return (Sign > 0 ? "AX+:" : Sign < 0 ? "AX-:" : "AX:") + Axis;
                 return Button < 0 ? "-" : (Left ? "L:" : "R:") + Button;
@@ -68,6 +83,14 @@ namespace AwayVR
                 var prefix = t.Substring(0, i);
                 var rest = t.Substring(i + 1);
 
+                if (prefix.Equals("OVR", System.StringComparison.OrdinalIgnoreCase)
+                    && rest.Length >= 2)
+                {
+                    bool l = rest[0] == 'L' || rest[0] == 'l';
+                    int id;
+                    if (int.TryParse(rest.Substring(1), out id)) return Key.FromOvr(l, id);
+                    return new Key(false, -1);
+                }
                 if (prefix.Equals("AX", System.StringComparison.OrdinalIgnoreCase))
                     return new Key(rest);
                 if (prefix.Equals("AX+", System.StringComparison.OrdinalIgnoreCase))
@@ -91,35 +114,37 @@ namespace AwayVR
 
         internal static readonly string[] Labels =
         {
-            "Attack (right trigger)", "Guard (right grip)", "Jump / confirm (B)",
+            "Attack (right trigger)", "Guard (right grip)", "Jump / confirm (A)",
             "Run (left stick click)",
-            "Next weapon (right stick down)", "Grenade (left grip)", "Diary (Y)",
-            "Pause menu (right stick click)", "Next tab (right trigger)",
-            "Cancel (right stick click)",
+            "Next character (right stick down / X)", "Grenade (left grip)", "Diary (Y)",
+            "Pause menu (B)", "Next tab (right trigger)",
+            "Cancel (B)",
             "VR settings (both stick clicks)", "Show HUD (left trigger)",
-            "Previous weapon (right stick up)"
+            "Previous character (right stick up)"
         };
 
         /// <summary>
         /// Indices measured with the controller probe; only eight physical inputs respond.
         ///
-        /// Face buttons: B and Y report at 0 and 2, not A and X - Unity's OpenVR mapping was
-        /// built around the Vive wand and leaves A_Press with no slot. Grips are analog
-        /// (axes 10 and 11); buttons 16 and 17 are the capacitive TOUCH, not the click, and
-        /// using them fired on a resting finger.
+        /// Face buttons: Unity indices 0 and 2 are B and Y. A and X reach the process but
+        /// Unity's legacy layer gives them no index, so they are read through OpenVrBridge
+        /// as OVR:R7 and OVR:L7 - all four are usable. Grips are analog (axes 10 and 11);
+        /// buttons 16 and 17 are the capacitive TOUCH and fired on a resting finger.
         /// </summary>
         private static readonly string[] Defaults =
         {
             "R:15",             // Attack        right trigger
             "AX:AwayVR_GripR",  // Guard         right grip
-            "R:0",              // Jump/confirm  right face button
+            "OVR:R7",           // Jump/confirm  A, read through the bridge
             "L:8",              // Run           left stick click
-            "AX-:RightStickOnlyY",  // SwitchWeapon  right stick down -> next weapon
+            // Slots_Handler reads Skip_Up: in this game the weapon IS the character, so
+            // this is the character swap. The stick and X both do it.
+            "AX-:RightStickOnlyY|OVR:L7",  // SwitchWeapon
             "AX:AwayVR_GripL",  // Grenade       left grip
-            "L:2",              // Map           left face button -> "MAP"
-            "R:9",              // GameMenu      right stick click -> "Cancel", in-game pause
+            "L:2",              // Map           Y -> "MAP"
+            "R:0",              // GameMenu      B -> "Cancel", in-game pause
             "R:15",             // NextTab       right trigger (menus only)
-            "R:9",              // Cancel        same command as GameMenu (see Remap)
+            "R:0",              // Cancel        same command as GameMenu (see Remap)
             "L:8+R:9",          // VrSettings    both stick clicks
 
             // The HUD is on the left TRIGGER, and the right grip no longer raises it: guard
@@ -285,8 +310,49 @@ namespace AwayVR
             AxisFrame[key] = Time.frameCount;
         }
 
+        /// <summary>
+        /// Frame-cached edge for any boolean source. Evaluated once per frame so several game
+        /// scripts polling the same action all see the same edge.
+        /// </summary>
+        private static void Edge(string key, bool now, out bool active, out bool pressed,
+                                out bool released)
+        {
+            bool before;
+            if (!AxisState.TryGetValue(key, out before)) before = false;
+
+            int last;
+            if (AxisFrame.TryGetValue(key, out last) && last == Time.frameCount)
+            {
+                active = before;
+                AxisPressed.TryGetValue(key, out pressed);
+                AxisReleased.TryGetValue(key, out released);
+                return;
+            }
+
+            active = now;
+            pressed = active && !before;
+            released = !active && before;
+
+            AxisState[key] = active;
+            AxisPressed[key] = pressed;
+            AxisReleased[key] = released;
+            AxisFrame[key] = Time.frameCount;
+        }
+
+        private static void UpdateOvr(Key t, out bool active, out bool pressed, out bool released)
+        {
+            bool now = OpenVrBridge.Pressed(t.Left, t.Ovr);
+            Edge(t.ToString(), now, out active, out pressed, out released);
+        }
+
         public static bool Held(Key t)
         {
+            if (t.Ovr >= 0)
+            {
+                bool a, p, r;
+                UpdateOvr(t, out a, out p, out r);
+                return a;
+            }
             if (!string.IsNullOrEmpty(t.Axis))
             {
                 bool active, pressed, released;
@@ -300,6 +366,12 @@ namespace AwayVR
 
         public static bool Down(Key t)
         {
+            if (t.Ovr >= 0)
+            {
+                bool a, p, r;
+                UpdateOvr(t, out a, out p, out r);
+                return p;
+            }
             if (!string.IsNullOrEmpty(t.Axis))
             {
                 bool active, pressed, released;
@@ -313,6 +385,12 @@ namespace AwayVR
 
         public static bool Up(Key t)
         {
+            if (t.Ovr >= 0)
+            {
+                bool a, p, r;
+                UpdateOvr(t, out a, out p, out r);
+                return r;
+            }
             if (!string.IsNullOrEmpty(t.Axis))
             {
                 // This used to return false unconditionally, so an axis binding could NEVER
@@ -468,6 +546,14 @@ namespace AwayVR
                     }
                 }
             }
+            // Buttons Unity cannot see, read through the bridge. Swept first so pressing A
+            // records A rather than whatever else happens to be held.
+            foreach (int id in new[] { OpenVrBridge.ButtonA })
+            {
+                if (OpenVrBridge.Pressed(false, id)) { t = Key.FromOvr(false, id); return true; }
+                if (OpenVrBridge.Pressed(true, id)) { t = Key.FromOvr(true, id); return true; }
+            }
+
             // The grips and triggers are analog: without this axis sweep they could not be
             // captured, and would stay unassignable.
             foreach (var axisName in new[] { "AwayVR_GripL", "AwayVR_GripR",
