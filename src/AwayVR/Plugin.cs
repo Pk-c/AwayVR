@@ -63,7 +63,6 @@ namespace AwayVR
         // --- swing to attack ---
         internal static ConfigEntry<bool> CfgSwingToAttack;
         internal static ConfigEntry<bool> CfgWeaponTrail;
-        internal static ConfigEntry<float> CfgTrailSpeed;
         internal static ConfigEntry<float> CfgTrailHold;
         internal static ConfigEntry<float> CfgSwingThreshold;
         internal static ConfigEntry<float> CfgSwingCooldown;
@@ -265,11 +264,6 @@ namespace AwayVR
                 "Draws the weapon's trail when you swing. The game raised it from the attack "
                 + "animation, which no longer carries the blade now that the weapon follows "
                 + "the hand.");
-            CfgTrailSpeed = Config.Bind("034 - Weapons", "TrailSpeed", 1.2f,
-                new ConfigDescription("Hand speed at which the trail starts, in metres per "
-                    + "second. Below the attack threshold on purpose: a trail that appears "
-                    + "only once the hit registers is too late to read as motion.",
-                    new AcceptableValueRange<float>(0.2f, 6f)));
             CfgTrailHold = Config.Bind("034 - Weapons", "TrailHold", 0.25f,
                 new ConfigDescription("How long the trail keeps emitting after the hand slows.",
                     new AcceptableValueRange<float>(0.05f, 1f)));

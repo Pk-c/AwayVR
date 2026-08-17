@@ -67,8 +67,6 @@ namespace AwayVR.Menu
             _items.Add(new FloatItem("Swing threshold", Plugin.CfgSwingThreshold,
                 0.3f, 6f, 0.08f, 2.0f, 0.05f, "0.00", " m/s"));
             _items.Add(new BoolItem("Weapon trail", Plugin.CfgWeaponTrail));
-            _items.Add(new FloatItem("Trail speed", Plugin.CfgTrailSpeed,
-                0.20f, 6.00f, 0.05f, 1.0f, 0.05f, "0.00", " m/s"));
             _items.Add(new BoolItem("Power from motion", Plugin.CfgGrenadePowerFromMotion));
             _items.Add(new FloatItem("Throw power min", Plugin.CfgGrenadePowerMin,
                 0.05f, 1.00f, 0.02f, 0.5f, 0.01f, "0.00", "x"));

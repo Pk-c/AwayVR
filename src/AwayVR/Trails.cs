@@ -12,8 +12,10 @@ namespace AwayVR
     /// carries the blade and the trail never fires. We raise Emit from the measured hand
     /// speed, which is what the gesture actually is.
     ///
-    /// It starts below the attack threshold and lingers briefly after: a trail that appears
-    /// only once the hit registers is already too late to read as motion.
+    /// It fires on the SWING ITSELF, the same event that triggers the attack, rather than on
+    /// a threshold of its own - two independent numbers drift apart, and a lower one drew a
+    /// trail on every small movement. It then sustains while the hand keeps moving, so a long
+    /// swing keeps its trail to the end.
     /// </summary>
     internal static class Trails
     {
@@ -56,8 +58,16 @@ namespace AwayVR
             if (root != _scanned) Rescan(root);
             if (Found.Count == 0) return;
 
-            if (Swing.Speed >= Plugin.CfgTrailSpeed.Value)
-                _emitUntil = Time.unscaledTime + Plugin.CfgTrailHold.Value;
+            float now = Time.unscaledTime;
+
+            // Started only by a real swing.
+            if (Swing.IsSwinging) _emitUntil = now + Plugin.CfgTrailHold.Value;
+
+            // Sustained while the hand is still moving with intent, so the trail follows the
+            // whole gesture instead of stopping a fraction of a second in.
+            else if (now < _emitUntil
+                     && Swing.Speed >= Plugin.CfgSwingThreshold.Value * 0.5f)
+                _emitUntil = now + Plugin.CfgTrailHold.Value;
 
             bool emit = Emitting;
             for (int i = Found.Count - 1; i >= 0; i--)
@@ -90,7 +100,7 @@ namespace AwayVR
                           + "  found=" + Found.Count
                           + "  emitting=" + Emitting
                           + "  speed=" + Swing.Speed.ToString("0.00")
-                          + "  trigger=" + Plugin.CfgTrailSpeed.Value.ToString("0.00"));
+                          + "  swingThreshold=" + Plugin.CfgSwingThreshold.Value.ToString("0.00"));
 
             foreach (var t in Found)
             {
