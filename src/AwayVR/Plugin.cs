@@ -162,11 +162,10 @@ namespace AwayVR
                 + "Off by default because the fog is part of the art direction: try it only if "
                 + "the ghosting survives with occlusion already disabled.");
             CfgDisableDepthOfField = Config.Bind("06 - Visuals", "DisableDepthOfField", true,
-                "Switches off FxPro's depth of field, along with its chromatic aberration and "
-                + "lens curvature. The depth of field blurs from the depth buffer using one "
-                + "camera's matrices, so in stereo the blur sits beside the geometry instead "
-                + "of on it. It is set per scene, which is why some worlds ghost and others "
-                + "do not. It also blurs the weapon in your hand.");
+                "Zeroes FxPro's depth of field, chromatic aberration and lens curvature. The "
+                + "amounts are set to zero rather than the effects switched off, so their "
+                + "full-screen pass keeps rewriting the target - switching them off left it "
+                + "unwritten, which is the stale frame that used to bleed through.");
             CfgDisableBlink = Config.Bind("06 - Visuals", "DisableBlinkEffect", true,
                 "Switches off the eyelid-blink transition, which bends the whole screen "
                 + "through a curvature term and only stops when its fade completes.");

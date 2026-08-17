@@ -74,10 +74,15 @@ namespace AwayVR
         // The single sweep
         // ------------------------------------------------------------------
 
-        private static readonly string[] LensFields =
+        /// <summary>
+        /// Amounts, not switches. Zeroing them removes the effect while its full-screen pass
+        /// keeps running - and that pass is what rewrites the whole target. Switching the
+        /// effect off instead left the buffer unwritten, which is the stale frame that used
+        /// to bleed through.
+        /// </summary>
+        private static readonly string[] LensAmounts =
         {
-            "DOFEnabled", "ChromaticAberration", "ChromaticAberrationPrecise",
-            "LensCurvatureEnabled", "LensCurvaturePrecise"
+            "ChromaticAberrationOffset", "LensCurvaturePower"
         };
 
         /// <summary>
@@ -85,8 +90,8 @@ namespace AwayVR
         /// the switch can put them back. Without it, turning the setting off would leave the
         /// effect off until the scene reloaded - and a test you cannot undo is not a test.
         /// </summary>
-        private static readonly Dictionary<MonoBehaviour, bool[]> LensOriginals =
-            new Dictionary<MonoBehaviour, bool[]>();
+        private static readonly Dictionary<MonoBehaviour, float[]> LensOriginals =
+            new Dictionary<MonoBehaviour, float[]>();
 
         private static readonly Dictionary<string, FieldInfo> FieldCache =
             new Dictionary<string, FieldInfo>();
@@ -156,29 +161,55 @@ namespace AwayVR
         /// </summary>
         private static void ApplyLens(MonoBehaviour c, Type t, bool disabled)
         {
-            bool[] original;
+            var blur = BlurSizeField(c, t);
+
+            float[] original;
             if (!LensOriginals.TryGetValue(c, out original))
             {
-                original = new bool[LensFields.Length];
-                for (int i = 0; i < LensFields.Length; i++)
+                original = new float[LensAmounts.Length + 1];
+                for (int i = 0; i < LensAmounts.Length; i++)
                 {
-                    var fi = Field(t, LensFields[i]);
-                    original[i] = fi != null && fi.FieldType == typeof(bool) && (bool)fi.GetValue(c);
+                    var fi = Field(t, LensAmounts[i]);
+                    original[i] = fi != null && fi.FieldType == typeof(float)
+                                  ? (float)fi.GetValue(c) : 0f;
                 }
+                original[LensAmounts.Length] = blur.Key != null
+                    ? (float)blur.Key.GetValue(blur.Value) : 0f;
                 LensOriginals[c] = original;
             }
 
-            for (int i = 0; i < LensFields.Length; i++)
+            for (int i = 0; i < LensAmounts.Length; i++)
             {
-                var f = Field(t, LensFields[i]);
-                if (f == null || f.FieldType != typeof(bool)) continue;
-                bool want = disabled ? false : original[i];
-                if ((bool)f.GetValue(c) == want) continue;
+                var f = Field(t, LensAmounts[i]);
+                if (f == null || f.FieldType != typeof(float)) continue;
+                float want = disabled ? 0f : original[i];
+                if (Mathf.Approximately((float)f.GetValue(c), want)) continue;
                 f.SetValue(c, want);
-                if (Plugin.CfgVerbose.Value)
-                    Plugin.Log.LogInfo("FxPro." + LensFields[i] + " = " + want
-                                       + " on " + Hierarchy.Path(c.transform));
             }
+
+            if (blur.Key != null)
+            {
+                float want = disabled ? 0f : original[LensAmounts.Length];
+                if (!Mathf.Approximately((float)blur.Key.GetValue(blur.Value), want))
+                    blur.Key.SetValue(blur.Value, want);
+            }
+        }
+
+        /// <summary>DOFParams.DOFBlurSize, with the params object that owns it.</summary>
+        private static KeyValuePair<FieldInfo, object> BlurSizeField(MonoBehaviour c, Type t)
+        {
+            var pf = Field(t, "DOFParams");
+            if (pf == null) return new KeyValuePair<FieldInfo, object>(null, null);
+
+            object dof;
+            try { dof = pf.GetValue(c); }
+            catch { return new KeyValuePair<FieldInfo, object>(null, null); }
+            if (dof == null) return new KeyValuePair<FieldInfo, object>(null, null);
+
+            var bf = Field(dof.GetType(), "DOFBlurSize");
+            if (bf == null || bf.FieldType != typeof(float))
+                return new KeyValuePair<FieldInfo, object>(null, null);
+            return new KeyValuePair<FieldInfo, object>(bf, dof);
         }
 
         private static FieldInfo Field(Type t, string name)
