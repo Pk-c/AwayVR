@@ -88,26 +88,24 @@ namespace AwayVR
                 if (kv.Key != null && kv.Key.enabled) kv.Key.enabled = false;
 
             if (Time.unscaledTime < _nextScan) return;
-            _nextScan = Time.unscaledTime + 1f;
+            // Five seconds, not one. The offending geometry is placed by the scene and does
+            // not come and go; the scan exists only to catch what spawns late.
+            _nextScan = Time.unscaledTime + 5f;
 
             foreach (var r in UnityEngine.Object.FindObjectsOfType<Renderer>())
             {
                 if (r == null || !r.enabled) continue;
                 if (Silenced.ContainsKey(r)) continue;
 
-                var mats = r.sharedMaterials;
-                if (mats == null) continue;
-
-                bool hit = false;
-                string which = null;
-                for (int i = 0; i < mats.Length && !hit; i++)
-                {
-                    if (mats[i] == null || mats[i].shader == null) continue;
-                    if (!Matches(mats[i].shader.name)) continue;
-                    hit = true;
-                    which = mats[i].shader.name;
-                }
-                if (!hit) continue;
+                // sharedMaterial, NOT sharedMaterials: the plural allocates a fresh array on
+                // every access, and this loop runs over every renderer in the scene — fifteen
+                // hundred of them in the desert. That allocation was the mod's largest source
+                // of garbage, and garbage collection is exactly what a one-in-ten-frames stall
+                // looks like.
+                var mat = r.sharedMaterial;
+                if (mat == null || mat.shader == null) continue;
+                if (!Matches(mat.shader.name)) continue;
+                string which = mat.shader.name;
 
                 Silenced[r] = r.enabled;
                 r.enabled = false;

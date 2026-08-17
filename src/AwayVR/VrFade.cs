@@ -85,7 +85,10 @@ namespace AwayVR
                 if (kv.Key != null && kv.Key.enabled) kv.Key.enabled = false;
 
             if (Time.unscaledTime < _nextScan) return;
-            _nextScan = Time.unscaledTime + 0.5f;
+            // The plates belong to the scene and are found once; only a late-created one
+            // needs catching, which two seconds does as well as half a second for a quarter
+            // of the cost.
+            _nextScan = Time.unscaledTime + 2f;
 
             float screenWidth = Mathf.Max(Screen.width, 1);
             Found.Clear();

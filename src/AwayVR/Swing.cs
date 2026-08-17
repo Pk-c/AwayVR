@@ -82,7 +82,7 @@ namespace AwayVR
         private static void RefreshMelee()
         {
             if (Time.unscaledTime < _nextMeleeCheck) return;
-            _nextMeleeCheck = Time.unscaledTime + 0.25f;
+            _nextMeleeCheck = Time.unscaledTime + 0.6f;
 
             // Scene-wide search: depending on the weapon, weapons_sword is not always under
             // the viewmodel root, and a narrower search never detected melee at all.

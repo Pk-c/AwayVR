@@ -207,6 +207,14 @@ namespace AwayVR
             _alpha = Mathf.Lerp(_alpha, target, k);
             if (_alpha < 0.004f) _alpha = 0f;
 
+            // The UI camera renders a full 1920x1080 pass into its texture. It used to do
+            // so on every frame of the game, whether or not the HUD was on screen — a whole
+            // camera's culling and draw submission for an image nobody was looking at. It is
+            // switched on from the moment the HUD is asked for, which is before the fade
+            // reaches visibility, so the texture is always ready in time.
+            bool wanted = target > 0f || _alpha > 0f;
+            if (_cam.enabled != wanted) _cam.enabled = wanted;
+
             bool visible = _alpha > 0f;
             _panel.Show(visible);
             if (!visible) return;

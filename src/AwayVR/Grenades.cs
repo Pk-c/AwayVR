@@ -29,6 +29,8 @@ namespace AwayVR
         private const string HeldName = "AwayVR_HeldGrenade";
 
         private static Transform _held;
+        private static weapons_secondary _secondary;
+        private static float _nextSecondaryScan;
         private static GameObject _prefabUsed;
 
         private static FieldInfo _fCount;
@@ -382,10 +384,20 @@ namespace AwayVR
             // Rebuilt when the hand is recreated by a scene load, or when the game swaps the
             // projectile for a different one.
             ResolveFields();
+
+            // Cached. This ran FindObjectOfType EVERY FRAME, which walks every loaded object
+            // in the scene — by far the most expensive thing the mod did, and for a component
+            // that changes at most once per scene. The reference nulls itself when the object
+            // is destroyed, so a periodic retry is all that is needed to pick up the next one.
+            if (_secondary == null && Time.unscaledTime >= _nextSecondaryScan)
+            {
+                _nextSecondaryScan = Time.unscaledTime + 0.5f;
+                _secondary = Object.FindObjectOfType<weapons_secondary>();
+            }
+
             GameObject prefab = null;
-            var secondary = Object.FindObjectOfType<weapons_secondary>();
-            if (secondary != null && _fProjectile != null)
-                prefab = _fProjectile.GetValue(secondary) as GameObject;
+            if (_secondary != null && _fProjectile != null)
+                prefab = _fProjectile.GetValue(_secondary) as GameObject;
 
             if (prefab == null)
             {
@@ -445,6 +457,8 @@ namespace AwayVR
             if (_held != null) Object.Destroy(_held.gameObject);
             _held = null;
             _prefabUsed = null;
+            _secondary = null;
+            _nextSecondaryScan = 0f;
         }
     }
 }

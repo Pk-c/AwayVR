@@ -222,6 +222,7 @@ namespace AwayVR
             CameraEffects.ForgetOriginals();
             LayerBisect.Reset();
             RootBisect.Reset();
+            _fpc = null;
             Refraction.Forget();
             WeaponEffects.Forget();
             Grenades.Forget();
@@ -279,7 +280,7 @@ namespace AwayVR
             // every one of these.
             Visuals.Apply(Plugin.CfgVerbose.Value);
 
-            PlayerBody.Apply(cam, Plugin.CfgVerbose.Value);
+            PlayerBody.Apply(cam, Plugin.CfgVerbose.Value, true);
             Weapons.Apply(Plugin.CfgWeaponAttach.Value, Plugin.CfgVerbose.Value);
 
             HudCapture.OnSceneLoaded();
@@ -606,6 +607,7 @@ namespace AwayVR
 
         /// <summary>Merged weapons camera, watched because the game switches it back on.</summary>
         private static Camera _weaponsCam;
+        private static UnityStandardAssets.Characters.FirstPerson.FirstPersonController _fpc;
 
         /// <summary>
         /// The weapons camera must draw NOTHING while still RENDERING. Those are two
@@ -749,21 +751,18 @@ namespace AwayVR
             if (VrActive && Time.unscaledTime >= _nextEffectSweep)
             {
                 _nextEffectSweep = Time.unscaledTime + 0.5f;
-                // Swept rather than driven per frame: scanning every camera is far too
-                // costly at frame rate, and the game re-enables its bloom on its own.
-                CameraEffects.ApplyBloom(Plugin.CfgDisableBloom.Value);
-                CameraEffects.ApplyColorGrading(Plugin.CfgDisableColorGrading.Value);
-
-                // Swept like the others: each world brings its own camera, carrying its own
-                // copy of the effect. Fixing it once for one world would leave the next one
-                // ghosting exactly as before.
-                CameraEffects.ApplyTemporalAA(Plugin.CfgDisableTemporalAA.Value);
+                // ONE pass over the cameras for all of it. Each world brings its own
+                // camera carrying its own copies of these effects, and the game switches
+                // several of them back on as it goes, so the sweep has to keep happening —
+                // but it has no reason to happen six times over.
+                CameraEffects.Sweep(Plugin.CfgDisableBloom.Value,
+                                    Plugin.CfgDisableColorGrading.Value,
+                                    Plugin.CfgDisableTemporalAA.Value,
+                                    Plugin.CfgDisableOcclusion.Value,
+                                    Plugin.CfgDisableGlobalFog.Value,
+                                    Plugin.CfgDisableDepthOfField.Value,
+                                    Plugin.CfgDisableBlink.Value);
                 Visuals.Apply(false);
-                CameraEffects.KeepRenderTextureCamerasMono();
-                CameraEffects.ApplyStereoBroken(Plugin.CfgDisableOcclusion.Value,
-                                                Plugin.CfgDisableGlobalFog.Value);
-                CameraEffects.ApplyLensEffects(Plugin.CfgDisableDepthOfField.Value,
-                                               Plugin.CfgDisableBlink.Value);
 
                 // UI_hide_map re-enables the minimap whenever you leave a cave, and scenes
                 // create canvases of their own: we sweep behind them.
@@ -773,8 +772,14 @@ namespace AwayVR
                 // vanish without a scene change â€” on death the progression screen appears
                 // while InGame would have stayed true, and the HUD there would have demanded
                 // a grip to show up.
-                InGame = Object.FindObjectOfType<
-                    UnityStandardAssets.Characters.FirstPerson.FirstPersonController>() != null;
+                // Cached rather than searched every sweep: FindObjectOfType walks every
+                // loaded object, and this one is a single component that survives for the
+                // whole scene. The reference goes null on its own when the player is
+                // destroyed, which is exactly the event we are watching for.
+                if (_fpc == null)
+                    _fpc = Object.FindObjectOfType<
+                        UnityStandardAssets.Characters.FirstPerson.FirstPersonController>();
+                InGame = _fpc != null;
 
                 // A new weapons camera can appear along with a respawn.
                 if (_weaponsCam == null && MainCamera != null)

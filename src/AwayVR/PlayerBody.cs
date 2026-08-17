@@ -32,9 +32,23 @@ namespace AwayVR
             }
         }
 
-        public static int Apply(Camera cam, bool log)
+        private static float _nextScan;
+
+        /// <summary>Called on scene setup with force, and periodically from the sweep.</summary>
+        public static int Apply(Camera cam, bool log) { return Apply(cam, log, false); }
+
+        public static int Apply(Camera cam, bool log, bool force)
         {
             if (cam == null) return 0;
+
+            // Throttled hard. This walks every renderer in the scene, and the body it is
+            // looking for only reappears when a character is swapped — twice a second was
+            // paying a scene-wide scan for an event that happens once a minute.
+            if (!force)
+            {
+                if (Time.unscaledTime < _nextScan) return 0;
+                _nextScan = Time.unscaledTime + 2f;
+            }
 
             int layer = Layer;
             int n = 0;
@@ -51,6 +65,8 @@ namespace AwayVR
             }
             return n;
         }
+
+        public static void ResetScanTimer() { _nextScan = 0f; }
 
         private static void RestoreRenderers()
         {
