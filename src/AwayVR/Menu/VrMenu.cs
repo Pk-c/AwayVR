@@ -5,8 +5,7 @@ namespace AwayVR.Menu
 {
     /// <summary>
     /// Settings menu, driven entirely by the stick: there is no mouse in VR, therefore no
-    /// pointer. Three pages: the settings, the layer selection and the canvas selection.
-    /// Everything applies live, with no need to close the menu.
+    /// pointer. Everything applies live, with no need to close the menu.
     /// </summary>
     public class VrMenu : MonoBehaviour
     {
@@ -76,8 +75,22 @@ namespace AwayVR.Menu
             _items.Add(new SectionItem("Graphics"));
             _items.Add(new FloatItem("World scale", Plugin.CfgWorldScale,
                 0.30f, 3.00f, 0.06f, 0.8f, 0.01f, "0.00", "x"));
-            _items.Add(new BoolItem("Disable bloom", Plugin.CfgDisableBloom));
             _items.Add(new BoolItem("Disable colour grading", Plugin.CfgDisableColorGrading));
+
+            // Full-screen effects, one switch each, all live and all reversible. This is a
+            // bisection instrument, not a taste panel: the point is to turn exactly one thing
+            // off and see what changes, which is the only way left to name the culprit.
+            _items.Add(new SectionItem("Effects"));
+            _items.Add(new FloatItem("Render scale", Plugin.CfgResolutionScale,
+                0.50f, 2.00f, 0.05f, 0.5f, 0.02f, "0.00", "x"));
+            _items.Add(new BoolItem("No ambient occlusion", Plugin.CfgDisableOcclusion));
+            _items.Add(new BoolItem("No depth of field", Plugin.CfgDisableDepthOfField));
+            _items.Add(new BoolItem("No global fog", Plugin.CfgDisableGlobalFog));
+            _items.Add(new BoolItem("No blink effect", Plugin.CfgDisableBlink));
+            _items.Add(new BoolItem("No temporal AA", Plugin.CfgDisableTemporalAA));
+            _items.Add(new BoolItem("Weapons camera off", Plugin.CfgWeaponsCameraOff));
+            _items.Add(new BoolItem("Disable bloom", Plugin.CfgDisableBloom));
+            _items.Add(new BoolItem("Force anisotropic", Plugin.CfgAnisotropic));
 
             _items.Add(new SectionItem("Interface"));
             _items.Add(new BoolItem("HUD always visible", Plugin.CfgHudAlwaysVisible));
@@ -91,6 +104,7 @@ namespace AwayVR.Menu
                 -1.20f, 1.20f, 0.05f, 0.6f, 0.01f, "0.00", " m"));
 
             _items.Add(new SectionItem("System"));
+            _items.Add(new BoolItem("FPS counter", Plugin.CfgFpsCounter));
             _items.Add(new ActionItem("Reset all", "left/right", Reinitialiser));
         }
 

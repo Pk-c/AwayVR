@@ -95,6 +95,7 @@ namespace AwayVR
             HudCapture.Place();
             VrFade.Place();
             Grenades.Place();
+            FpsCounter.Place();
         }
 
         // ------------------------------------------------------------------
@@ -218,6 +219,8 @@ namespace AwayVR
             Weapons.Forget();
             PlayerBody.Forget();
             VrFade.OnSceneLoaded();
+            CameraEffects.ForgetOriginals();
+            WeaponEffects.Forget();
             Grenades.Forget();
             RoomScale.Forget();
             _aNormaliser.Clear();
@@ -621,6 +624,17 @@ namespace AwayVR
         {
             if (_weaponsCam == null) return;
 
+            if (Plugin.CfgWeaponsCameraOff.Value)
+            {
+                // The effects move BEFORE the camera goes: they are what kept it alive.
+                WeaponEffects.Install(_weaponsCam, MainCamera);
+                WeaponEffects.Sync();
+                if (_weaponsCam.enabled) _weaponsCam.enabled = false;
+                return;
+            }
+
+            if (WeaponEffects.Installed) WeaponEffects.Forget();
+
             // Re-enabled if the game switched it off: its effects need it running.
             if (!_weaponsCam.enabled) _weaponsCam.enabled = true;
 
@@ -700,11 +714,18 @@ namespace AwayVR
             HudCapture.Tick();
             VrFade.Tick();
             Grenades.Tick();
+            FpsCounter.Tick();
         }
 
         private void Update()
         {
             ApplyLive();
+
+            // Applied live so it can be judged from inside the headset. Unity reallocates
+            // the eye textures on the next frame, so the change is visible at once.
+            if (!Mathf.Approximately(XRSettings.eyeTextureResolutionScale,
+                                     Plugin.CfgResolutionScale.Value))
+                XRSettings.eyeTextureResolutionScale = Plugin.CfgResolutionScale.Value;
 
             if (Input.GetKeyDown(Plugin.CfgRecenterKey.Value))
             {
@@ -725,6 +746,15 @@ namespace AwayVR
                 // costly at frame rate, and the game re-enables its bloom on its own.
                 CameraEffects.ApplyBloom(Plugin.CfgDisableBloom.Value);
                 CameraEffects.ApplyColorGrading(Plugin.CfgDisableColorGrading.Value);
+
+                // Swept like the others: each world brings its own camera, carrying its own
+                // copy of the effect. Fixing it once for one world would leave the next one
+                // ghosting exactly as before.
+                CameraEffects.ApplyTemporalAA(Plugin.CfgDisableTemporalAA.Value);
+                CameraEffects.ApplyStereoBroken(Plugin.CfgDisableOcclusion.Value,
+                                                Plugin.CfgDisableGlobalFog.Value);
+                CameraEffects.ApplyLensEffects(Plugin.CfgDisableDepthOfField.Value,
+                                               Plugin.CfgDisableBlink.Value);
 
                 // UI_hide_map re-enables the minimap whenever you leave a cave, and scenes
                 // create canvases of their own: we sweep behind them.

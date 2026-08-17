@@ -104,6 +104,14 @@ namespace AwayVR
                     sb.AppendLine("      camera effects  : " + string.Join(", ", effets.ToArray()));
                 if (autres.Count > 0)
                     sb.AppendLine("      other components: " + string.Join(", ", autres.ToArray()));
+
+                // FxPro's switches are set per scene, so the component being present says
+                // nothing: only its parameters tell one world apart from another.
+                foreach (var m in c.GetComponents<MonoBehaviour>())
+                {
+                    if (m == null || m.GetType().Name != "FxPro") continue;
+                    sb.AppendLine("      FxPro           : " + CameraEffects.DescribeFxPro(m));
+                }
             }
         }
 

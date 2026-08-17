@@ -22,6 +22,13 @@ namespace AwayVR
         internal static ConfigEntry<int> CfgShadowCascades;
         internal static ConfigEntry<ShadowResolution> CfgShadowResolution;
         internal static ConfigEntry<float> CfgLodBias;
+        internal static ConfigEntry<bool> CfgDisableTemporalAA;
+        internal static ConfigEntry<bool> CfgDisableOcclusion;
+        internal static ConfigEntry<bool> CfgDisableGlobalFog;
+        internal static ConfigEntry<bool> CfgDisableDepthOfField;
+        internal static ConfigEntry<bool> CfgDisableBlink;
+        internal static ConfigEntry<bool> CfgWeaponsCameraOff;
+        internal static ConfigEntry<bool> CfgFpsCounter;
         internal static ConfigEntry<bool> CfgRecenterOnLoad;
         internal static ConfigEntry<bool> CfgRoomScaleMove;
         internal static ConfigEntry<bool> CfgBlockCameraOnWalls;
@@ -113,7 +120,7 @@ namespace AwayVR
                 "Enables VR. When false the game starts normally in 2D.");
             CfgDevice = Config.Bind("01 - XR", "Device", "OpenVR",
                 "Name of the XR device to load. Must appear in globalgamemanagers' enabledVRDevices.");
-            CfgResolutionScale = Config.Bind("01 - XR", "ResolutionScale", 1.5f,
+            CfgResolutionScale = Config.Bind("01 - XR", "ResolutionScale", 1.3f,
                 new ConfigDescription(
                     "Eye texture supersampling. The game renders deferred, where MSAA does "
                     + "not exist, so this is the ONLY anti-aliasing available — hence a "
@@ -133,6 +140,38 @@ namespace AwayVR
             CfgLodBias = Config.Bind("06 - Visuals", "LodBias", 5.0f,
                 new ConfigDescription("Keeps high-detail models in use further away. The game "
                     + "ships 3.0.", new AcceptableValueRange<float>(0.5f, 10f)));
+
+            CfgDisableTemporalAA = Config.Bind("06 - Visuals", "DisableTemporalAA", false,
+                "Switches off the game's temporal anti-aliasing. It keeps a single frame of "
+                + "history per camera, which in stereo means each eye is blended with the "
+                + "other one — the ghosting. Leave it on unless you want to see the effect.");
+            CfgDisableOcclusion = Config.Bind("06 - Visuals", "DisableAmbientOcclusion", true,
+                "Switches off Amplify Occlusion. It rebuilds world positions from the depth "
+                + "buffer using the camera's single set of matrices, so in stereo its dark "
+                + "contours land beside the geometry rather than on it — a shadow copy of the "
+                + "world, offset by the eye separation.");
+            CfgDisableGlobalFog = Config.Bind("06 - Visuals", "DisableGlobalFog", false,
+                "Switches off GlobalFog, which reconstructs the scene the same monoscopic way. "
+                + "Off by default because the fog is part of the art direction: try it only if "
+                + "the ghosting survives with occlusion already disabled.");
+            CfgDisableDepthOfField = Config.Bind("06 - Visuals", "DisableDepthOfField", true,
+                "Switches off FxPro's depth of field, along with its chromatic aberration and "
+                + "lens curvature. The depth of field blurs from the depth buffer using one "
+                + "camera's matrices, so in stereo the blur sits beside the geometry instead "
+                + "of on it. It is set per scene, which is why some worlds ghost and others "
+                + "do not. It also blurs the weapon in your hand.");
+            CfgDisableBlink = Config.Bind("06 - Visuals", "DisableBlinkEffect", true,
+                "Switches off the eyelid-blink transition, which bends the whole screen "
+                + "through a curvature term and only stops when its fade completes.");
+            CfgWeaponsCameraOff = Config.Bind("06 - Visuals", "WeaponsCameraOff", true,
+                "Disables Weapons_Camera instead of leaving it running blind, moving its "
+                + "per-character effects onto the main camera first so nothing is lost. The "
+                + "camera renders nothing and clears depth only, so its colour buffer holds "
+                + "whatever was there before — and its effect chain composites that onto the "
+                + "screen. That is the stale half-transparent frame.");
+            CfgFpsCounter = Config.Bind("06 - Visuals", "FpsCounter", false,
+                "Shows the frame rate, and the worst frame of the last few seconds, in the "
+                + "corner of the view.");
 
             CfgRecenterOnLoad = Config.Bind("01 - XR", "RecenterOnSceneLoad", true,
                 "Recentres the view on every scene load, so you start facing the character's "
@@ -388,3 +427,4 @@ namespace AwayVR
         }
     }
 }
+

@@ -100,6 +100,210 @@ namespace AwayVR
             }
         }
 
+        private static readonly Dictionary<string, FieldInfo> FxProFields =
+            new Dictionary<string, FieldInfo>();
+
+        /// <summary>
+        /// The two full-screen passes that reconstruct the scene from the camera's MONO
+        /// matrices, and therefore cannot line up in stereo.
+        ///
+        /// Both take the finished depth buffer and rebuild world positions from it, using
+        /// frustum corners or a view matrix belonging to "the camera" — of which there is
+        /// only one, while there are two eyes. What they compute lands beside the geometry
+        /// it belongs to, offset by roughly the interpupillary distance, and the eye reads a
+        /// dark copy of the world sitting next to the world. That is the ghosting, and it is
+        /// on the GEOMETRY, which is what rules out the panels and FxPro.
+        ///
+        /// It has been there from the start. What changed is that it became visible
+        /// everywhere: at a supersampled eye texture the offset edges are sharp instead of
+        /// mushy, so a defect that read as softness now reads as a double image.
+        ///
+        /// Two separate switches on purpose. Occlusion is the likelier culprit — it draws
+        /// dark contours around every object, which is exactly what a ghost of the geometry
+        /// looks like — while the fog is part of the art direction and worth keeping if it
+        /// is innocent. Turning both off at once would tell us nothing.
+        /// </summary>
+        public static void ApplyStereoBroken(bool disableOcclusion, bool disableFog)
+        {
+            foreach (var cam in UnityEngine.Object.FindObjectsOfType<Camera>())
+            {
+                foreach (var c in cam.GetComponents<MonoBehaviour>())
+                {
+                    if (c == null) continue;
+                    var n = c.GetType().Name;
+
+                    bool occlusion = n.IndexOf("Occlusion", StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool fog = n.IndexOf("GlobalFog", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (!occlusion && !fog) continue;
+
+                    // SYMMETRIC: the switch has to work both ways or it cannot be used to
+                    // bisect anything. A one-way switch means every test needs a restart,
+                    // and you can never tell a fix from a coincidence.
+                    bool want = !(occlusion ? disableOcclusion : disableFog);
+                    if (c.enabled == want) continue;
+                    c.enabled = want;
+                    if (Plugin.CfgVerbose.Value)
+                        Plugin.Log.LogInfo((want ? "Re-enabled: " : "Disabled: ") + n + " on "
+                                           + Hierarchy.Path(c.transform));
+                }
+            }
+        }
+
+        /// <summary>
+        /// FxPro's lens simulations, and the eyelid blink. Both are separate from the
+        /// occlusion, and the DEPTH OF FIELD is the one that matters.
+        ///
+        /// It blurs everything away from its focus distance, working from the depth buffer
+        /// and a single camera's matrices — so in stereo the blur lands offset from the
+        /// geometry it belongs to, which is the ghosting that survived switching the
+        /// occlusion off. Its switch is set per scene, which is why one world ghosts and
+        /// another does not: the desert has it on, the first world does not.
+        ///
+        /// It also blurs the viewmodel, since the weapon sits far from the focus plane. That
+        /// is the sharpening noticed when this was first switched off — an independent
+        /// confirmation that the depth of field is what is running, and the reason to be
+        /// confident this time.
+        ///
+        /// Chromatic aberration and lens curvature go with it: both simulate a lens you are
+        /// already looking through, around a centre that is right for neither eye.
+        ///
+        /// Bloom, colour tinting and film grain are NOT touched. They are what gives each
+        /// world its look, and none of them reconstructs anything from depth.
+        /// </summary>
+        private static readonly string[] LensFields =
+        {
+            "DOFEnabled", "ChromaticAberration", "ChromaticAberrationPrecise",
+            "LensCurvatureEnabled", "LensCurvaturePrecise"
+        };
+
+        /// <summary>
+        /// The game's own values, remembered the first time we see a component, so the
+        /// switch can put them back. Without this, turning the setting off would leave the
+        /// effect off until the scene reloaded — and a test you cannot undo is not a test.
+        /// </summary>
+        private static readonly Dictionary<MonoBehaviour, bool[]> LensOriginals =
+            new Dictionary<MonoBehaviour, bool[]>();
+
+        public static void ApplyLensEffects(bool disableDepthOfField, bool disableBlink)
+        {
+            foreach (var cam in UnityEngine.Object.FindObjectsOfType<Camera>())
+            {
+                foreach (var c in cam.GetComponents<MonoBehaviour>())
+                {
+                    if (c == null) continue;
+                    var t = c.GetType();
+
+                    if (t.Name == "BlinkEffect")
+                    {
+                        if (c.enabled == !disableBlink) continue;
+                        c.enabled = !disableBlink;
+                        continue;
+                    }
+
+                    if (t.Name != "FxPro") continue;
+
+                    bool[] original;
+                    if (!LensOriginals.TryGetValue(c, out original))
+                    {
+                        original = new bool[LensFields.Length];
+                        for (int i = 0; i < LensFields.Length; i++)
+                        {
+                            var fi = FxProField(t, LensFields[i]);
+                            original[i] = fi != null && fi.FieldType == typeof(bool)
+                                          && (bool)fi.GetValue(c);
+                        }
+                        LensOriginals[c] = original;
+                    }
+
+                    for (int i = 0; i < LensFields.Length; i++)
+                    {
+                        var f = FxProField(t, LensFields[i]);
+                        if (f == null || f.FieldType != typeof(bool)) continue;
+                        bool want = disableDepthOfField ? false : original[i];
+                        if ((bool)f.GetValue(c) == want) continue;
+                        f.SetValue(c, want);
+                        if (Plugin.CfgVerbose.Value)
+                            Plugin.Log.LogInfo("FxPro." + LensFields[i] + " = " + want
+                                               + " on " + Hierarchy.Path(c.transform));
+                    }
+                }
+            }
+        }
+
+        /// <summary>Dropped on a scene load: the components are gone with it.</summary>
+        public static void ForgetOriginals() { LensOriginals.Clear(); }
+
+        private static FieldInfo FxProField(Type t, string name)
+        {
+            var key = t.FullName + "." + name;
+            FieldInfo f;
+            if (FxProFields.TryGetValue(key, out f)) return f;
+            f = t.GetField(name, BindingFlags.Instance | BindingFlags.Public
+                                 | BindingFlags.NonPublic);
+            FxProFields[key] = f;
+            return f;
+        }
+
+        /// <summary>Reads FxPro's switches back, for the diagnostic dump.</summary>
+        public static string DescribeFxPro(MonoBehaviour c)
+        {
+            var t = c.GetType();
+            var parts = new List<string>();
+            foreach (var name in new[] { "BloomEnabled", "DOFEnabled", "ChromaticAberration",
+                                         "LensCurvatureEnabled", "HalfResolution",
+                                         "FilmGrainIntensity", "VignettingIntensity",
+                                         "ColorEffectsEnabled" })
+            {
+                var f = FxProField(t, name);
+                if (f == null) continue;
+                object v;
+                try { v = f.GetValue(c); } catch { continue; }
+                parts.Add(name + "=" + v);
+            }
+            return string.Join(" ", parts.ToArray());
+        }
+
+        /// <summary>
+        /// Switches off the game's temporal anti-aliasing, and it has to go in VR.
+        ///
+        /// This is the ghosting. TemporalReprojection is Playdead's TAA — FrustumJitter
+        /// offsets the projection every frame, VelocityBuffer records the motion, and the
+        /// result is blended with the PREVIOUS frame kept in a history buffer.
+        ///
+        /// There is exactly one history buffer, held per camera. In multi-pass stereo the
+        /// same camera renders twice per frame with two different view matrices, so the left
+        /// eye's image becomes the history the right eye blends against, and the other way
+        /// round on the next pass. Every eye is permanently mixed with the other one, offset
+        /// by the interpupillary distance. That is the double image, and it follows the head
+        /// because the offset is the head's own stereo separation.
+        ///
+        /// No setting fixes this: it would take one history buffer per eye, which means
+        /// rewriting the effect. So the effect goes. All three components go together — the
+        /// jitter left running without the reprojection to resolve it turns clean edges into
+        /// a permanent shimmer, which is worse than what we set out to cure.
+        ///
+        /// The anti-aliasing it provided is not really lost either: the eye texture is
+        /// supersampled well above 1, which is what actually smooths edges here.
+        /// </summary>
+        public static void ApplyTemporalAA(bool disabled)
+        {
+            foreach (var cam in UnityEngine.Object.FindObjectsOfType<Camera>())
+            {
+                foreach (var c in cam.GetComponents<MonoBehaviour>())
+                {
+                    if (c == null) continue;
+                    var n = c.GetType().Name;
+                    if (n != "TemporalReprojection" && n != "FrustumJitter"
+                        && n != "VelocityBuffer") continue;
+                    if (c.enabled == !disabled) continue;
+                    c.enabled = !disabled;
+                    if (disabled && Plugin.CfgVerbose.Value)
+                        Plugin.Log.LogInfo("Temporal AA disabled: " + n + " on "
+                                           + Hierarchy.Path(c.transform));
+                }
+            }
+        }
+
         /// <summary>
         /// Switches the game's colour grading off.
         ///
