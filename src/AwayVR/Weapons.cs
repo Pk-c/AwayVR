@@ -49,22 +49,59 @@ namespace AwayVR
         /// normal place — hence two arms. We hand the old one back to its camera and start
         /// again from the new one.
         /// </summary>
+        private static float _nextHolderCheck;
+
         private static void VerifierNouveauPorteArme(bool log)
         {
             if (_root == null || _anchor == null) return;
 
-            foreach (var t in Object.FindObjectsOfType<Transform>())
-            {
-                if (t == null || t == _root) continue;
-                if (t.name != "Hide_W_y_n") continue;
-                if (EstSous(t, _anchor)) continue;
+            // Throttled, and above all NARROWED. This used to walk every Transform in the
+            // scene — ten thousand of them in an open area — comparing t.name against a
+            // string. Transform.name allocates a fresh string on every read in Unity, so the
+            // check was costing ten thousand allocations twice a second, for an event that
+            // happens when a cutscene hands the weapon back.
+            //
+            // The holder subtree always carries the game's own weapon scripts, and there is a
+            // handful of those against ten thousand transforms. Searching for the component
+            // and walking UP to the holder answers the same question for a thousandth of the
+            // cost.
+            if (Time.unscaledTime < _nextHolderCheck) return;
+            _nextHolderCheck = Time.unscaledTime + 1.5f;
 
-                if (log || Plugin.CfgVerbose.Value)
-                    Plugin.Log.LogInfo("New weapon holder detected: releasing the old one.");
-                Restore(false);
-                Forget();
-                return;
+            foreach (var c in Object.FindObjectsOfType<weapon_position>())
+            {
+                if (c == null) continue;
+                if (Detache(c.transform, log)) return;
             }
+            foreach (var c in Object.FindObjectsOfType<weapons_sway>())
+            {
+                if (c == null) continue;
+                if (Detache(c.transform, log)) return;
+            }
+        }
+
+        /// <summary>
+        /// Walks up from a weapon script to its 'Hide_W_y_n' holder. True when that holder is
+        /// a NEW one — neither ours nor anything under our anchor — in which case ours is
+        /// handed back before the two draw at once.
+        /// </summary>
+        private static bool Detache(Transform from, bool log)
+        {
+            Transform holder = null;
+            for (var p = from; p != null; p = p.parent)
+            {
+                if (p == _root) return false;          // ours, nothing to do
+                if (p == _anchor) return false;        // under our anchor, likewise
+                if (p.name == "Hide_W_y_n") { holder = p; break; }
+            }
+            if (holder == null || holder == _root) return false;
+            if (EstSous(holder, _anchor)) return false;
+
+            if (log || Plugin.CfgVerbose.Value)
+                Plugin.Log.LogInfo("New weapon holder detected: releasing the old one.");
+            Restore(false);
+            Forget();
+            return true;
         }
 
         private static bool EstSous(Transform t, Transform parent)
@@ -518,6 +555,8 @@ namespace AwayVR
         }
 
         /// <summary>Call on a scene change: the transforms have been destroyed.</summary>
+        public static void ResetHolderTimer() { _nextHolderCheck = 0f; }
+
         public static void Forget()
         {
             _root = null;

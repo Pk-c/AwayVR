@@ -91,6 +91,7 @@ namespace AwayVR.Menu
             _items.Add(new BoolItem("Weapons camera off", Plugin.CfgWeaponsCameraOff));
             _items.Add(new BoolItem("Disable bloom", Plugin.CfgDisableBloom));
             _items.Add(new BoolItem("Force anisotropic", Plugin.CfgAnisotropic));
+            _items.Add(new CascadeItem("Shadow cascades"));
             _items.Add(new FloatItem("Shadow distance", Plugin.CfgShadowDistance,
                 10f, 200f, 2f, 40f, 1f, "0", " m"));
             _items.Add(new FloatItem("LOD bias", Plugin.CfgLodBias,

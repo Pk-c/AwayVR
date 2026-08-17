@@ -344,8 +344,10 @@ namespace AwayVR
             // During play the camera carries gameplay elements (weapon holders, impact FX,
             // wings) that the viewmodel already handles: we only detach in menu and cutscene
             // scenes, where the full-screen-glued-to-the-head problem actually arises.
-            if (FindObjectOfType<UnityStandardAssets.Characters.FirstPerson.FirstPersonController>() != null)
-                return;
+            // InGame is the same question, already answered once per sweep from a cached
+            // reference. Asking it again here meant a second full scan of every loaded object
+            // for a value we were holding.
+            if (InGame) return;
 
             for (int i = camT.childCount - 1; i >= 0; i--)
             {
@@ -608,6 +610,12 @@ namespace AwayVR
         /// <summary>Merged weapons camera, watched because the game switches it back on.</summary>
         private static Camera _weaponsCam;
         private static UnityStandardAssets.Characters.FirstPerson.FirstPersonController _fpc;
+
+        /// <summary>Root of the player hierarchy, for searches that only concern the body.</summary>
+        public static Transform PlayerRoot
+        {
+            get { return _fpc != null ? _fpc.transform.root : null; }
+        }
 
         /// <summary>
         /// The weapons camera must draw NOTHING while still RENDERING. Those are two

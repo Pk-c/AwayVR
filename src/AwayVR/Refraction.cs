@@ -62,6 +62,7 @@ namespace AwayVR
         };
 
         private static float _nextScan;
+        private static int _scans;
 
         public static void Forget()
         {
@@ -69,6 +70,7 @@ namespace AwayVR
                 if (kv.Key != null) kv.Key.enabled = kv.Value;
             Silenced.Clear();
             _nextScan = 0f;
+            _scans = 0;
         }
 
         private static bool Matches(string shaderName)
@@ -88,9 +90,11 @@ namespace AwayVR
                 if (kv.Key != null && kv.Key.enabled) kv.Key.enabled = false;
 
             if (Time.unscaledTime < _nextScan) return;
-            // Five seconds, not one. The offending geometry is placed by the scene and does
-            // not come and go; the scan exists only to catch what spawns late.
-            _nextScan = Time.unscaledTime + 5f;
+            // The offending geometry is placed by the scene and does not come and go, so
+            // this is not a patrol: it is a handful of passes after a load to catch anything
+            // that spawns late, and then nothing at all. A scene load resets the counter.
+            _scans++;
+            _nextScan = _scans >= 4 ? float.MaxValue : Time.unscaledTime + 2f;
 
             foreach (var r in UnityEngine.Object.FindObjectsOfType<Renderer>())
             {

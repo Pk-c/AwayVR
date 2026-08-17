@@ -224,6 +224,30 @@ namespace AwayVR.Menu
         public override void Step(int dir) { RootBisect.Step(dir); }
     }
 
+    /// <summary>
+    /// Shadow cascades, an int with only three legal values. A float slider would offer
+    /// meaningless in-between settings and Unity would silently round them.
+    /// </summary>
+    internal class CascadeItem : MenuItem
+    {
+        private static readonly int[] Values = { 1, 2, 4 };
+
+        public CascadeItem(string label) { Label = label; }
+
+        public override string ValueText
+        {
+            get { return Plugin.CfgShadowCascades.Value.ToString(); }
+        }
+
+        public override void Step(int dir)
+        {
+            int i = System.Array.IndexOf(Values, Plugin.CfgShadowCascades.Value);
+            if (i < 0) i = 1;
+            i = Mathf.Clamp(i + (dir >= 0 ? 1 : -1), 0, Values.Length - 1);
+            Plugin.CfgShadowCascades.Value = Values[i];
+        }
+    }
+
     internal enum MenuPage { None, Main, Bindings }
 
     /// <summary>Opens the input assignment page.</summary>

@@ -52,7 +52,17 @@ namespace AwayVR
 
             int layer = Layer;
             int n = 0;
-            foreach (var r in Object.FindObjectsOfType<Renderer>())
+
+            // Narrowed to the player's own hierarchy. The body is a handful of renderers
+            // under the character; sweeping the scene's fifteen hundred to find them meant
+            // allocating an array of every renderer in the world twice a minute, and reading
+            // a layer off each. The whole-scene sweep survives only as a fallback for the
+            // frames before the player exists.
+            var renderers = VrManager.PlayerRoot != null
+                ? VrManager.PlayerRoot.GetComponentsInChildren<Renderer>(true)
+                : Object.FindObjectsOfType<Renderer>();
+
+            foreach (var r in renderers)
             {
                 if (r == null || r.gameObject.layer != layer) continue;
                 if (r.shadowCastingMode == ShadowCastingMode.ShadowsOnly) continue;
