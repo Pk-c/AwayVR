@@ -1,16 +1,13 @@
+using HarmonyLib;
 using UnityEngine;
 
 namespace AwayVR
 {
     /// <summary>
-    /// Swing-to-attack detection, for melee weapons only.
+    /// Swing-to-attack for melee weapons. The game already fires animation, trail and hit
+    /// box, so we only make InputM believe the button was pressed when the hand accelerates.
     ///
-    /// The game already fires everything an attack needs: animation, trail and hit box. So
-    /// we reimplement none of it — we simply make InputM believe the attack button was
-    /// pressed at the moment the hand accelerates.
-    ///
-    /// Throwing weapons keep the button: hurling a projectile by waving your hand would be
-    /// imprecise and tiring.
+    /// Throwing weapons keep the button: hurling a projectile by waving would be imprecise.
     /// </summary>
     internal static class Swing
     {
@@ -41,6 +38,9 @@ namespace AwayVR
             {
                 _hasLast = false;
                 _melee = false;
+                // The question reopens with it: clearing the answer while leaving it marked
+                // as settled is what left swing detection dead for the rest of the scene.
+                _meleeKnown = false;
                 return;
             }
 
@@ -79,19 +79,55 @@ namespace AwayVR
         /// and the attack states. Launchers (fireballs, grenades, boomerang, bombs) do not
         /// have it.
         /// </summary>
+        /// <summary>Forces the next Tick to look again - scene load, or a weapon swap.</summary>
+        public static void Invalidate() { _meleeKnown = false; }
+
+        // The weapon is not in your hands when a scene starts - in the hub it is handed over
+        // much later, on crossing a trigger. So the component announces itself instead of us
+        // asking: weapons_sword raises OnEnable when the game activates it.
+
+        [HarmonyPatch(typeof(weapons_sword), "OnEnable")]
+        [HarmonyPostfix]
+        private static void SwordEnabled()
+        {
+            _melee = true;
+            _meleeKnown = true;
+        }
+
+        /// <summary>Another sword may still be active, so this only reopens the question.</summary>
+        [HarmonyPatch(typeof(weapons_sword), "OnDisable")]
+        [HarmonyPostfix]
+        private static void SwordDisabled() { _meleeKnown = false; }
+
+        public static void OnSceneLoaded() { Invalidate(); }
+
+        public static bool MeleeDetected { get { return _melee; } }
+        public static bool MeleeSettled { get { return _meleeKnown; } }
+
+        private static bool _meleeKnown;
+
         private static void RefreshMelee()
         {
-            if (Time.unscaledTime < _nextMeleeCheck) return;
-            _nextMeleeCheck = Time.unscaledTime + 0.6f;
+            // Event-driven: the answer only moves when the character or the weapon changes.
+            if (GameState.CharacterChanged) Invalidate();
+            if (_meleeKnown) return;
 
-            // Scene-wide search: depending on the weapon, weapons_sword is not always under
-            // the viewmodel root, and a narrower search never detected melee at all.
-            // FindObjectsOfType only returns active objects.
+            if (Time.unscaledTime < _nextMeleeCheck) return;
+            _nextMeleeCheck = Time.unscaledTime + 0.5f;
+
+            // Scene-wide: weapons_sword is not always under the viewmodel root, and a
+            // narrower search never detected melee at all.
             foreach (var s in Object.FindObjectsOfType<weapons_sword>())
             {
-                if (s != null && s.enabled) { _melee = true; return; }
+                if (s == null || !s.enabled) continue;
+                _melee = true;
+                _meleeKnown = true;
+                return;
             }
+
+            // Settling on "no" is safe: OnEnable corrects it the moment a sword appears.
             _melee = false;
+            _meleeKnown = true;
         }
     }
 }

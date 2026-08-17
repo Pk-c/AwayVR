@@ -3,23 +3,12 @@ using UnityEngine;
 namespace AwayVR
 {
     /// <summary>
-    /// Renders the game's canvases into a texture, shown on a VR panel.
+    /// Renders the game's canvases into a texture shown on a VR panel. The canvases stay in
+    /// screen mode, driven end to end by Unity, but attached to a camera of ours that draws
+    /// into a texture: nothing to recompute, and the game's off-screen parking is clipped by
+    /// the camera frame exactly as the screen used to clip it.
     ///
-    /// Same contract as the dialogue capture, and for the same reason: we no longer touch
-    /// the layout. The canvases stay in screen mode, driven end to end by Unity — rect,
-    /// CanvasScaler, anchors — but attached to a camera of OUR OWN that draws into a
-    /// texture instead of the screen.
-    ///
-    /// This answers the three failures of the world-space approach, where we took that
-    /// computation over ourselves:
-    ///  - no geometry left to recompute, so no more content flung out of frame;
-    ///  - this game hides its UI by SLIDING it off screen (the diary is parked at
-    ///    +1114 px); the camera frame clips that overflow naturally, just as the screen
-    ///    used to;
-    ///  - size is adjusted by changing the panel, never the canvas.
-    ///
-    /// The camera sits very far from any scenery, so it sees nothing but the canvases
-    /// attached to it — no need to meddle with layers that belong to the game.
+    /// The camera sits far from any scenery, so it sees only what is attached to it.
     /// </summary>
     internal static class HudCapture
     {
@@ -48,7 +37,7 @@ namespace AwayVR
             {
                 _reason = r;
                 if (Plugin.CfgVerbose.Value)
-                    Plugin.Log.LogInfo("HUD: " + (r.Length == 0 ? "hidden" : "visible — " + r));
+                    Plugin.Log.LogInfo("HUD: " + (r.Length == 0 ? "hidden" : "visible - " + r));
             }
             return r.Length == 0 ? 0f : 1f;
         }
@@ -61,7 +50,7 @@ namespace AwayVR
             if (!VrManager.InGame) return "outside gameplay";
 
             // Arrival reminder: nothing at all for a moment, then the HUD for a couple of
-            // seconds. The delay matters — a scene comes up mid-load with the view still
+            // seconds. The delay matters - a scene comes up mid-load with the view still
             // settling, and showing the HUD immediately means it is gone before there is
             // anything to read.
             float now = Time.unscaledTime;
@@ -87,7 +76,7 @@ namespace AwayVR
             }
 
             // One input, held, shows the HUD and releasing it hides it again. It used to be
-            // either grip, which put it on guard as well — and guard is held for long stretches
+            // either grip, which put it on guard as well - and guard is held for long stretches
             // of a fight, so the panel sat in front of you throughout.
             if (VrBindings.Held(VrBindings.Action.ShowHud)) return "hud button";
             return "";
@@ -102,7 +91,7 @@ namespace AwayVR
         public static void OnSceneLoaded()
         {
             // No reminder for the very first load. That one is leaving the menu for the hub,
-            // where the game hands you a quiet arrival — flashing the HUD across it is the
+            // where the game hands you a quiet arrival - flashing the HUD across it is the
             // one place it reads as an intrusion rather than a courtesy. Every later load is
             // a transition mid-play, where knowing your health and ammo is worth having.
             if (!_firstLoadSeen)
@@ -139,7 +128,7 @@ namespace AwayVR
             {
                 // 24 bits, NOT 16: that is the only format carrying the 8 stencil bits
                 // Unity's UI uses for masking. Without them every Mask component fails
-                // silently — the compass rendered square instead of round, and the HUD
+                // silently - the compass rendered square instead of round, and the HUD
                 // background, which is meant to be clipped, filled the whole frame.
                 _rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32);
                 _rt.name = "AwayVR_HudRT";
@@ -208,7 +197,7 @@ namespace AwayVR
             if (_alpha < 0.004f) _alpha = 0f;
 
             // The UI camera renders a full 1920x1080 pass into its texture. It used to do
-            // so on every frame of the game, whether or not the HUD was on screen — a whole
+            // so on every frame of the game, whether or not the HUD was on screen - a whole
             // camera's culling and draw submission for an image nobody was looking at. It is
             // switched on from the moment the HUD is asked for, which is before the fade
             // reaches visibility, so the texture is always ready in time.

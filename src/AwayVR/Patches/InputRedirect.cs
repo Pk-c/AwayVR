@@ -54,7 +54,7 @@ namespace AwayVR.Patches
         /// Pause menu. ShowPanels does NOT read it through a named button but through
         /// Input.GetKeyDown(KeyCode.Escape), which the transpiler used to let through: the
         /// menu was therefore unreachable from a VR controller. JoystickButton7 is the other
-        /// key the game accepts — absent from Touch — so we redirect it too.
+        /// key the game accepts - absent from Touch - so we redirect it too.
         /// </summary>
         public static bool GetKeyDown(KeyCode k)
         {

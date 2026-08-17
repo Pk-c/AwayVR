@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -173,6 +173,32 @@ namespace AwayVR
         private static void DumpEtatJeu(StringBuilder sb)
         {
             sb.AppendLine("-- Game locks --");
+
+            try { sb.AppendLine("  hide_weapons        : " + basics.hide_weapons); }
+            catch { sb.AppendLine("  hide_weapons        : <unreadable>"); }
+
+            try
+            {
+                sb.AppendLine("  combat allowed      : " + SeavenTools.AreCombatActionsAllowed());
+            }
+            catch (System.Exception e)
+            {
+                sb.AppendLine("  combat allowed      : <unreadable> " + e.GetType().Name);
+            }
+
+            int swords = 0, swordsOn = 0;
+            foreach (var w in Object.FindObjectsOfType<weapons_sword>())
+            {
+                if (w == null) continue;
+                swords++;
+                if (w.enabled) swordsOn++;
+            }
+            sb.AppendLine("  swing               : enabled=" + Plugin.CfgSwingToAttack.Value
+                          + "  melee=" + Swing.MeleeDetected
+                          + "  settled=" + Swing.MeleeSettled
+                          + "  weapons_sword=" + swordsOn + "/" + swords
+                          + "  speed=" + Swing.Speed.ToString("0.00")
+                          + "  threshold=" + Plugin.CfgSwingThreshold.Value.ToString("0.00"));
             // A legacy animation and an Invoke both follow timeScale: at zero "DiaryShow"
             // does not play and the book stays parked off to the right.
             sb.AppendLine("  Time.timeScale      : " + Time.timeScale);
@@ -318,25 +344,7 @@ namespace AwayVR
         }
 
         /// <summary>
-        /// Locates the dialogue object. DIAGNOSTIC ONLY: changes nothing.
-        ///
-        /// dialog_launcher instantiates it at the NPC's position, in the world, and
-        /// ShowPanels finds it again through GameObject.Find("Dialog UI(Clone)"). It never
-        /// appeared among the screen canvases in our surveys, which is consistent: it is not
-        /// screen UI. What remains is where it is, on which layer, and whether the VR camera
-        /// renders it.
-        /// </summary>
-        /// <summary>
-        /// Video players in the scene. DIAGNOSTIC ONLY.
-        ///
-        /// The menu video does not show in VR. Depending on how the game plays it, it may be
-        /// out of reach of our capture: a MovieTexture placed on a canvas goes through it,
-        /// but a VideoPlayer drawing straight into the camera or into its own texture does
-        /// not. We look at what is actually there before attempting anything.
-        /// </summary>
-        /// <summary>
-        /// Why the held grenade is or is not showing. Four things have to line up, and
-        /// without this there is no telling which one failed.
+        /// Why the held grenade is or is not showing: four things have to line up.
         /// </summary>
         private static void DumpGrenade(StringBuilder sb)
         {
@@ -460,7 +468,7 @@ namespace AwayVR
                     sb.AppendLine("  UI_play_video on " + Hierarchy.Path(c.transform)
                                   + "   actif=" + c.gameObject.activeInHierarchy);
                     sb.AppendLine("      movie = " + (mv as Object == null
-                        ? "<null> â€” no video assigned"
+                        ? "<null> - no video assigned"
                         : ((Object)mv).name));
                 }
             }
@@ -468,7 +476,7 @@ namespace AwayVR
             // The menu's "background video" is not one: Menu_Background picks one of three
             // sets at random and activates it. So it is a scene object rendered by the main
             // camera, and its absence comes down to its layer, its position or the camera
-            // mask â€” not to our UI capture.
+            // mask - not to our UI capture.
             var tBg = HarmonyLib.AccessTools.TypeByName("Menu_Background");
             if (tBg == null)
             {
@@ -642,7 +650,7 @@ namespace AwayVR
 
                 // Visible graphics. The list used to stop at 6, which hid precisely the
                 // elements we were looking for: we raise the limit. We also give the
-                // physical size and the offset from the panel centre â€” an oversized element,
+                // physical size and the offset from the panel centre - an oversized element,
                 // or one pushed out of frame, stands out immediately.
                 int shown = 0;
                 foreach (var g in c.GetComponentsInChildren<Graphic>(false))

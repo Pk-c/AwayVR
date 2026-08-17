@@ -3,19 +3,13 @@ using UnityEngine;
 namespace AwayVR
 {
     /// <summary>
-    /// Attaches the viewmodel to the tracked hand.
+    /// Attaches the viewmodel to the tracked hand. Two traps specific to this game:
     ///
-    /// Two traps specific to this game:
+    ///  - the models live under "Hide_W_y_n", not under Weapons_Camera;
+    ///  - an Animator animates Hide_W_y_n's local POSITION to holster the weapon, so it
+    ///    overwrites any position offset every frame while rotation works fine.
     ///
-    ///  - the weapon models do NOT live under Weapons_Camera but under "Hide_W_y_n"
-    ///    (Hide_W_y_n/weapon_sway/&lt;weapon&gt;), another child of the camera;
-    ///  - an Animator driven by hide_all_weapons animates Hide_W_y_n's local POSITION to
-    ///    holster and draw the weapon. It therefore overwrites it every frame, which left
-    ///    any position offset with no effect at all while rotation, which is not animated,
-    ///    worked fine.
-    ///
-    /// Hence the intermediate anchor: we write our transform onto it and the game keeps
-    /// control of the weapon's own. The two coexist instead of fighting.
+    /// Hence the intermediate anchor: we write onto it, the game keeps the weapon's own.
     /// </summary>
     internal static class Weapons
     {
@@ -40,33 +34,22 @@ namespace AwayVR
         // ------------------------------------------------------------------
 
         /// <summary>
-        /// Detects a brand-new weapon holder and releases the old one.
-        ///
-        /// FindRoot keeps the first one it found for as long as it exists. But the game
-        /// recreates that node without destroying the previous one: the lever cutscenes,
-        /// which switch camera to show the dungeon entrance, bring a fresh one back on
-        /// return. Ours then stayed attached to the hand while the new one drew in its
-        /// normal place — hence two arms. We hand the old one back to its camera and start
-        /// again from the new one.
+        /// Detects a brand-new weapon holder and releases the old one. The game rebuilds that
+        /// node without destroying the previous one - the lever cutscenes do it on return -
+        /// leaving ours on the hand while the new one draws in its normal place: two arms.
         /// </summary>
-        private static float _nextHolderCheck;
+        private static bool _holderChecked;
 
         private static void VerifierNouveauPorteArme(bool log)
         {
             if (_root == null || _anchor == null) return;
 
-            // Throttled, and above all NARROWED. This used to walk every Transform in the
-            // scene — ten thousand of them in an open area — comparing t.name against a
-            // string. Transform.name allocates a fresh string on every read in Unity, so the
-            // check was costing ten thousand allocations twice a second, for an event that
-            // happens when a cutscene hands the weapon back.
-            //
-            // The holder subtree always carries the game's own weapon scripts, and there is a
-            // handful of those against ten thousand transforms. Searching for the component
-            // and walking UP to the holder answers the same question for a thousandth of the
-            // cost.
-            if (Time.unscaledTime < _nextHolderCheck) return;
-            _nextHolderCheck = Time.unscaledTime + 1.5f;
+            // A new holder is built when a cutscene or a dialogue hands control back, and at
+            // no other time. InputM is the game's own notion of "the player is not driving".
+            // Scanning every Transform on a timer cost ten thousand string allocations a
+            // second, since Transform.name allocates on every read.
+            if (_holderChecked && !GameState.ControlRegained) return;
+            _holderChecked = true;
 
             foreach (var c in Object.FindObjectsOfType<weapon_position>())
             {
@@ -82,7 +65,7 @@ namespace AwayVR
 
         /// <summary>
         /// Walks up from a weapon script to its 'Hide_W_y_n' holder. True when that holder is
-        /// a NEW one — neither ours nor anything under our anchor — in which case ours is
+        /// a NEW one - neither ours nor anything under our anchor - in which case ours is
         /// handed back before the two draw at once.
         /// </summary>
         private static bool Detache(Transform from, bool log)
@@ -235,17 +218,10 @@ namespace AwayVR
             var position = new Vector3(
                 Plugin.CfgWeaponOffX.Value, Plugin.CfgWeaponOffY.Value, Plugin.CfgWeaponOffZ.Value);
 
-            // The offset is expressed in RIG space, not in hand space.
-            //
-            // That was the underlying cause: an offset expressed in hand space rotates with
-            // the wrist. It becomes a lever arm, so moving the weapon inevitably moved its
-            // centre of rotation too. No value could satisfy both requirements at once — it
-            // was structural.
-            //
-            // By cancelling the hand's rotation on the offset alone, the held point ends up
-            // at "controller position + offset" expressed in the rig: a position the wrist's
-            // rotation no longer changes. The weapon therefore turns in place around that
-            // point, and the offset merely translates it.
+            // The offset is expressed in RIG space, not hand space: in hand space it rotates
+            // with the wrist and becomes a lever arm, so moving the weapon moves its centre of
+            // rotation too. Cancelling the hand's rotation on the offset alone leaves the held
+            // point on the controller and the offset merely translates it.
             var hand = _anchor.parent;
             var decalageMain = hand != null
                 ? Quaternion.Inverse(hand.localRotation) * position
@@ -254,11 +230,6 @@ namespace AwayVR
             _anchor.localPosition = decalageMain - _gripLocal * scale;
         }
 
-        /// <summary>
-        /// Realigns the weapon on the hand by measuring the real centre of its renderers:
-        /// model pivots often sit a long way from the model itself. Recomputed only on a
-        /// weapon change, otherwise the correction would fight the holstering animation.
-        /// </summary>
         /// <summary>
         /// Fragments to ignore when picking the reference model. The viewmodel mixes the
         /// weapon with full-screen effects, a shield and decorative elements that switch on
@@ -315,6 +286,9 @@ namespace AwayVR
             Bounds local;
             if (!TryRendererBounds(principal, out local)) return;
             _signature = sig;
+            // The melee test depends on which weapon is in hand, and this is the one place
+            // that knows it has changed.
+            Swing.Invalidate();
 
             switch (Plugin.CfgWeaponAnchor.Value)
             {
@@ -428,8 +402,8 @@ namespace AwayVR
 
         /// <summary>
         /// Everything visible on the player-weapons layer WITHOUT going through our anchor.
-        /// The second arm reported by the player is not under our weapon holder — only one
-        /// model is visible there — and is not called Hide_W_y_n, or the duplicate detection
+        /// The second arm reported by the player is not under our weapon holder - only one
+        /// model is visible there - and is not called Hide_W_y_n, or the duplicate detection
         /// would have caught it. So we look for it by what it is, not by its name.
         /// </summary>
         public static void DumpArmesOrphelines(System.Text.StringBuilder sb)
@@ -555,7 +529,15 @@ namespace AwayVR
         }
 
         /// <summary>Call on a scene change: the transforms have been destroyed.</summary>
-        public static void ResetHolderTimer() { _nextHolderCheck = 0f; }
+
+        /// <summary>Called on a scene load: everything below has to be rediscovered.</summary>
+        /// <summary>True once the game's weapon holder has been found.</summary>
+        public static bool HasRoot { get { return _root != null; } }
+
+        public static void OnSceneLoaded()
+        {
+            _holderChecked = false;
+        }
 
         public static void Forget()
         {
@@ -568,3 +550,4 @@ namespace AwayVR
         }
     }
 }
+

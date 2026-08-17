@@ -3,16 +3,10 @@ using UnityEngine;
 namespace AwayVR
 {
     /// <summary>
-    /// Shared damped gaze follow, computed once per frame.
+    /// Shared damped gaze follow, computed once per frame for the HUD, the dialogue box and
+    /// the virtual screens - separate damping let them drift apart.
     ///
-    /// Everything the mod places in front of the player uses this single yaw: the HUD panel,
-    /// the dialogue box and the game's virtual screens. Having each of them run its own
-    /// damping let them drift apart — the title poster and the menu are meant to be seen as
-    /// one, and a few degrees of disagreement is immediately visible.
-    ///
-    /// Only YAW is followed. Pitch and roll are deliberately dropped: a panel that tips over
-    /// with your head is disorienting, and there is no reason for a heads-up display to
-    /// follow you looking up or leaning sideways.
+    /// YAW only. A panel that tips over with your head is disorienting.
     /// </summary>
     internal static class GazeFollow
     {
@@ -70,17 +64,9 @@ namespace AwayVR
         }
 
         /// <summary>
-        /// Re-reads the head pose without advancing the damping. Called just before rendering,
-        /// where Unity has re-latched the pose it will actually draw with.
-        ///
-        /// POSITION ONLY. Re-reading the yaw here defeated the damping outright: the lag was
-        /// measured against the LateUpdate yaw, so adding it to a newer one handed the panel
-        /// the head's latest rotation with a stale correction on top. It snapped forward, then
-        /// LateUpdate pulled it back — which is precisely the shake felt when turning.
-        ///
-        /// The yaw wants no refresh anyway. It is deliberately late, so one frame more costs
-        /// nothing. The position is another matter: it is not damped at all, and a panel left
-        /// at last frame's eye position visibly swims.
+        /// Re-reads the head POSITION just before rendering, where Unity has re-latched the
+        /// pose. Not the yaw: the lag was measured against the LateUpdate value, and adding
+        /// it to a newer one defeats the damping and makes the panel shake when turning.
         /// </summary>
         public static void Refresh(Transform reference)
         {

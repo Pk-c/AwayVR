@@ -6,28 +6,11 @@ using UnityEngine;
 namespace AwayVR
 {
     /// <summary>
-    /// Moves the per-character full-screen effects off Weapons_Camera and onto the main one,
-    /// so that camera can finally be switched off.
+    /// Copies the per-character full-screen effects from Weapons_Camera onto the main camera
+    /// so that camera can be disabled. Left running it renders nothing and clears depth only,
+    /// so its colour buffer holds a stale frame that its effect chain composites onto screen.
     ///
-    /// The whole difficulty of this mod's camera handling comes from one conflict. The
-    /// character effects — the mechanic's red wash, the magician's cracked glasses — are
-    /// components on Weapons_Camera and on nothing else, so the camera has to keep running
-    /// for them to process the frame. But it renders NOTHING (its layers were merged into
-    /// the main camera to cure the doubled arm) and it clears depth only, so its colour
-    /// buffer holds whatever happened to be in that render target before. Its image-effect
-    /// chain then takes that content and composites it onto the screen.
-    ///
-    /// That is the stale half-transparent frame. And it explains why removing effects made
-    /// things WORSE rather than better: each one that was removed was a pass that rewrote the
-    /// whole target and so hid the garbage underneath. Take away the last one and there is
-    /// nothing left writing the image at all — a black screen.
-    ///
-    /// So we copy the effects onto the main camera, where the buffer holds the actual scene,
-    /// and let the empty camera be disabled.
-    ///
-    /// The copies are SLAVED to the originals. The game switches its character effects on and
-    /// off by toggling those components, and it goes on doing so on the disabled camera; if
-    /// the copies did not follow, the effects would never appear.
+    /// Copies are slaved to the originals: the game keeps toggling those components.
     /// </summary>
     internal static class WeaponEffects
     {
@@ -53,11 +36,8 @@ namespace AwayVR
         }
 
         /// <summary>
-        /// Creates the copies. Only inspector data is carried over — the public fields, which
-        /// is where the shaders, materials and LUTs live. Private fields are deliberately NOT
-        /// copied: they hold cached references, above all to the camera the effect was
-        /// originally attached to, and copying those would point the new component straight
-        /// back at the camera we are trying to retire.
+        /// Only PUBLIC fields are copied - shaders, materials, LUTs. Private ones hold cached
+        /// references, above all to the camera we are retiring.
         /// </summary>
         public static void Install(Camera weapons, Camera main)
         {

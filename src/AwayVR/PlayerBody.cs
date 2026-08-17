@@ -33,6 +33,7 @@ namespace AwayVR
         }
 
         private static float _nextScan;
+        private static float _retryUntil;
 
         /// <summary>Called on scene setup with force, and periodically from the sweep.</summary>
         public static int Apply(Camera cam, bool log) { return Apply(cam, log, false); }
@@ -41,14 +42,21 @@ namespace AwayVR
         {
             if (cam == null) return 0;
 
-            // Throttled hard. This walks every renderer in the scene, and the body it is
-            // looking for only reappears when a character is swapped — twice a second was
-            // paying a scene-wide scan for an event that happens once a minute.
+            // Event-driven. The body is put back by the game when a character is swapped and
+            // at no other moment, so the walk happens then and once when the scene starts -
+            // never on a timer.
+            //
+            // The retry window exists because the character's renderers are not always in
+            // place on the frame the scene reports itself loaded; without it, a body that
+            // arrives late would stay visible until the next swap.
             if (!force)
             {
+                if (GameState.CharacterChanged) _retryUntil = Time.unscaledTime + 3f;
+                if (Time.unscaledTime > _retryUntil) return 0;
                 if (Time.unscaledTime < _nextScan) return 0;
-                _nextScan = Time.unscaledTime + 2f;
+                _nextScan = Time.unscaledTime + 0.5f;
             }
+            else _retryUntil = Time.unscaledTime + 3f;
 
             int layer = Layer;
             int n = 0;

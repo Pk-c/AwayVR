@@ -6,19 +6,12 @@ namespace AwayVR
 {
     /// <summary>
     /// Attaches the game's screen-space canvases to the UI camera, which draws them into a
-    /// texture displayed on a VR panel.
+    /// texture shown on a VR panel. An overlay canvas goes to the backbuffer after the
+    /// cameras have rendered, so it never reaches the eye textures.
     ///
-    /// A ScreenSpaceOverlay canvas is invisible in VR: Unity draws it into the backbuffer
-    /// after the cameras have rendered, so it lands in the mirror window and never in the
-    /// eye textures. It has to go through a camera.
-    ///
-    /// We spent a long time trying to convert these canvases to WorldSpace, recomputing the
-    /// rect, scale, anchor and parenting ourselves. Every attempt failed on a different
-    /// detail, and for one underlying reason: this game hides its UI by SLIDING it off
-    /// screen — the diary is parked at +1114 px, the menu panels at -921 — which a screen
-    /// frame clips naturally but a world-space panel leaves floating in your field of view.
-    /// Keeping the canvases in screen mode under a camera of our own means Unity retains
-    /// full control of the layout, clipping included, and we compute no geometry at all.
+    /// They stay in SCREEN mode on purpose: the game hides its UI by sliding it off screen
+    /// (the diary sits at +1114 px), which a camera frame clips and a world-space panel does
+    /// not. Unity keeps full control of the layout and we compute no geometry.
     /// </summary>
     internal static class CanvasTools
     {

@@ -6,7 +6,7 @@ namespace AwayVR
 {
     /// <summary>
     /// Layer inventory, for the diagnostic dump. Which layers actually carry renderers, and
-    /// which of those the camera is drawing — the two questions that tell a hidden object
+    /// which of those the camera is drawing - the two questions that tell a hidden object
     /// apart from an object that is drawn but invisible.
     /// </summary>
     internal static class LayerTools

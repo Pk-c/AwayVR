@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using BepInEx.Configuration;
 using UnityEngine;
@@ -254,7 +254,7 @@ namespace AwayVR.Menu
     internal class BindingsItem : MenuItem
     {
         public BindingsItem(string label) { Label = label; }
-        public override string ValueText { get { return "â€º"; } }
+        public override string ValueText { get { return ">"; } }
         public override MenuPage Activate() { return MenuPage.Bindings; }
     }
 

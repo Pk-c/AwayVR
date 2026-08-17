@@ -4,17 +4,8 @@ using UnityEngine;
 namespace AwayVR
 {
     /// <summary>
-    /// Hides one render layer at a time, from inside the headset.
-    ///
-    /// The last resort, and the right tool once every effect switch has been tried and
-    /// nothing moves: an artefact that no post-process affects is not a post-process. It is
-    /// geometry, drawn by the camera like everything else, and the only question left is
-    /// WHICH geometry. Hiding layers one by one answers that by elimination instead of by
-    /// guesswork — the ghost vanishes on exactly one step, and that step names it.
-    ///
-    /// Only layers that actually carry visible renderers are offered, so the walk is a few
-    /// steps rather than thirty-two. The list is rebuilt whenever the walk restarts, since a
-    /// scene change replaces everything in it.
+    /// Hides one render layer at a time, to name geometry that no post-process affects.
+    /// Only layers carrying visible renderers are offered, so the walk is a few steps.
     /// </summary>
     internal static class LayerBisect
     {

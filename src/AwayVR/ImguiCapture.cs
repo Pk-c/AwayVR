@@ -5,21 +5,12 @@ using UnityEngine;
 namespace AwayVR
 {
     /// <summary>
-    /// Captures the IMGUI drawing of the dialogues and shows it in VR.
+    /// Shows the dialogues in VR. DialogOnGUI draws them with IMGUI, which the compositor
+    /// never folds into the eye textures - no canvas setting could have made them appear.
     ///
-    /// This game's dialogues are not canvas UI: DialogOnGUI draws them with Unity's
-    /// immediate-mode IMGUI, which the VR compositor never folds into the eye textures. No
-    /// canvas setting could ever have made them appear.
-    ///
-    /// The idea: IMGUI draws into whichever render target is ACTIVE when it runs. So we wrap
-    /// OnGUI to redirect that target to a texture of ours, then show the texture on a panel
-    /// in front of the player. The game keeps drawing exactly as before, and we never have
-    /// to reimplement its dialogue system.
-    ///
-    /// Two precautions decide whether this works at all:
-    ///  - only step in on the Repaint event, the only one that actually draws;
-    ///  - always restore the previous target on the way out, otherwise the game's entire
-    ///    rendering ends up in our texture.
+    /// IMGUI draws into whichever render target is active, so we redirect that target to a
+    /// texture of ours around OnGUI. Two precautions: only step in on Repaint, and always
+    /// restore the previous target, or the whole game ends up in our texture.
     /// </summary>
     internal static class ImguiCapture
     {

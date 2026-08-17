@@ -7,21 +7,11 @@ using UnityEngine.Rendering;
 namespace AwayVR
 {
     /// <summary>
-    /// Everything the mod does to the game's cameras, done in ONE pass.
+    /// Everything the mod does to the game's cameras, in one pass over the scene - it was six
+    /// separate scans, twice a second.
     ///
-    /// It used to be six methods, each opening with its own FindObjectsOfType&lt;Camera&gt;()
-    /// and its own GetComponents&lt;MonoBehaviour&gt;() per camera. Bloom, colour grading,
-    /// temporal AA, occlusion and fog, the lens effects, the render-texture cameras: six
-    /// scans of every object in the scene, twice a second, each allocating a fresh array per
-    /// camera. Readable, and far more expensive than anything it was switching off.
-    ///
-    /// One scan now, one GetComponents per camera, dispatched by type name. Same behaviour,
-    /// a sixth of the cost.
-    ///
-    /// Two families of effect have to be covered, and they behave differently:
-    ///  - classic full-screen effects, which implement OnRenderImage;
-    ///  - those injecting themselves through CommandBuffers (AmplifyOcclusion, the
-    ///    PostProcessing stack), which never go through OnRenderImage at all.
+    /// Two families have to be covered: effects implementing OnRenderImage, and those
+    /// injecting themselves through CommandBuffers, which never go through it at all.
     /// </summary>
     internal static class CameraEffects
     {
@@ -93,7 +83,7 @@ namespace AwayVR
         /// <summary>
         /// The game's own lens values, remembered the first time each component is seen, so
         /// the switch can put them back. Without it, turning the setting off would leave the
-        /// effect off until the scene reloaded — and a test you cannot undo is not a test.
+        /// effect off until the scene reloaded - and a test you cannot undo is not a test.
         /// </summary>
         private static readonly Dictionary<MonoBehaviour, bool[]> LensOriginals =
             new Dictionary<MonoBehaviour, bool[]>();
@@ -112,7 +102,7 @@ namespace AwayVR
                 if (cam == null) continue;
 
                 // Off-screen rendering is monoscopic by definition, yet the game leaves some
-                // of these cameras set to draw to both eyes — the minimap among them, which
+                // of these cameras set to draw to both eyes - the minimap among them, which
                 // then leaves its top-down view of the scenery lying in the eye buffer.
                 if (cam.targetTexture != null
                     && cam.stereoTargetEye != StereoTargetEyeMask.None)

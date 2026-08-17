@@ -8,21 +8,12 @@ namespace AwayVR
     /// <summary>
     /// Grenades held in, and thrown from, the left hand.
     ///
-    /// The game spawns its grenade from weapons_secondary's own transform — position,
-    /// rotation and throw direction all come from it:
+    /// The game spawns from weapons_secondary's own transform and applies its force along
+    /// that transform's forward. So we point it at the hand for the duration of the call and
+    /// put it back: count, cooldown, fuse and explosion stay the game's own.
     ///
-    ///     Instantiate(projectile, base.transform.position, Quaternion.identity);
-    ///     g.GetComponent&lt;Rigidbody&gt;().AddForce(base.transform.forward * speedpower);
-    ///
-    /// So we do not reimplement the throw at all. We point that transform at the left hand
-    /// for the duration of the call and put it back straight after: the grenade leaves the
-    /// hand, flies where the hand points, and every bit of the game's own behaviour —
-    /// count, cooldown, fuse, explosion — is untouched.
-    ///
-    /// The held model is built from the prefab's meshes rather than instantiated from it.
-    /// Instantiating would run the projectile's own Awake and Start, arming a live grenade
-    /// in your hand; copying the meshes gives a purely visual object that cannot do
-    /// anything.
+    /// The held model copies the prefab's meshes rather than instantiating it - instantiating
+    /// would run the projectile's Awake and arm a live grenade in your hand.
     /// </summary>
     internal static class Grenades
     {
@@ -90,16 +81,10 @@ namespace AwayVR
         }
 
         /// <summary>
-        /// Scales the throw to how hard you actually threw.
-        ///
-        /// The game applies its force once, as transform.forward * speedpower, with
-        /// speedpower an ordinary int field on the component. So we set it for the duration
-        /// of the call and put it back — no reimplementation of the throw, and the balance
-        /// of the weapon is still the game's own number, merely multiplied.
-        ///
-        /// It being an INT is the one real constraint: the factor is applied to the base
-        /// value and rounded, so a small base value quantises the result. The base is logged
-        /// once, under the input trace, so the granularity can be seen rather than guessed at.
+        /// Scales the throw by how hard you threw. speedpower is an ordinary int field, so we
+        /// set it for the duration of the call and put it back; the weapon's balance stays the
+        /// game's own number, multiplied. Being an int, a small base value quantises the
+        /// result - it is logged once under the input trace.
         /// </summary>
         private static void ApplyPower(weapons_secondary instance)
         {
@@ -235,7 +220,7 @@ namespace AwayVR
 
         /// <summary>
         /// Analog axis the gesture reads. We read a value rather than a button because the
-        /// button fires the moment the input moves at all — which is what made grenades feel
+        /// button fires the moment the input moves at all - which is what made grenades feel
         /// like they were going off on their own.
         /// </summary>
         private const string GestureAxis = "AwayVR_GripL";
@@ -282,8 +267,8 @@ namespace AwayVR
         ///
         /// A flag rather than a single-frame pulse: the gesture is read in LateUpdate and the
         /// game reads its button in Update, and nothing fixes the order between our scripts
-        /// and its own. It does go stale after a moment, so a throw that finds no reader —
-        /// during a load, say — cannot surface much later as a grenade nobody asked for.
+        /// and its own. It does go stale after a moment, so a throw that finds no reader -
+        /// during a load, say - cannot surface much later as a grenade nobody asked for.
         /// </summary>
         public static bool ConsumeThrow()
         {
@@ -304,16 +289,9 @@ namespace AwayVR
         private static float _peakTime = -999f;
 
         /// <summary>
-        /// Records how fast, and which way, the hand is moving.
-        ///
-        /// Measured in RIG space, not world space: in world space a player who is running
-        /// carries their own locomotion into the reading, and a grenade released while
-        /// sprinting would fly wherever the player happened to be going.
-        ///
-        /// It is the PEAK over the last fraction of a second that counts, not the speed at
-        /// the instant of release. A throw is over before you let go — the hand is already
-        /// slowing when the grip opens — so reading the release moment alone would find a
-        /// hand nearly at rest and lose the direction entirely.
+        /// Hand speed and direction, in RIG space so a running player's locomotion does not
+        /// end up in the throw. It is the PEAK over the last fraction of a second that
+        /// counts: the hand is already slowing when the grip opens.
         /// </summary>
         private static void TrackMotion(Transform hand)
         {
@@ -339,7 +317,7 @@ namespace AwayVR
 
         /// <summary>
         /// Which way the grenade leaves. The game applies a fixed force along the transform's
-        /// forward, so direction is the whole of what we control — the strength of the throw
+        /// forward, so direction is the whole of what we control - the strength of the throw
         /// is the game's own, and stays that way.
         /// </summary>
         private static Vector3 ThrowDirection(Transform hand)
@@ -357,7 +335,7 @@ namespace AwayVR
 
             // Released without a throw: aimed where the hand points, tilted up. Straight along
             // the controller the grenade leaves flat and drops almost at once, which is the
-            // trajectory that felt wrong — nothing thrown by hand travels level.
+            // trajectory that felt wrong - nothing thrown by hand travels level.
             var dir = hand.forward;
             var axis = Vector3.Cross(Vector3.up, dir);
             if (axis.sqrMagnitude > 1e-6f)
@@ -386,7 +364,7 @@ namespace AwayVR
             ResolveFields();
 
             // Cached. This ran FindObjectOfType EVERY FRAME, which walks every loaded object
-            // in the scene — by far the most expensive thing the mod did, and for a component
+            // in the scene - by far the most expensive thing the mod did, and for a component
             // that changes at most once per scene. The reference nulls itself when the object
             // is destroyed, so a periodic retry is all that is needed to pick up the next one.
             if (_secondary == null && Time.unscaledTime >= _nextSecondaryScan)
@@ -434,16 +412,10 @@ namespace AwayVR
         {
             if (_held == null || !_held.gameObject.activeSelf) return;
 
-            // The offset is expressed in RIG space, not hand space — the same lesson the
-            // weapon taught us. An offset written in hand space rotates with the wrist and
-            // becomes a lever arm, so moving the grenade inevitably moves its centre of
-            // rotation too. Cancelling the hand's rotation on the offset alone leaves the
-            // held point where the controller is, and the offset merely translates it.
-            //
-            // The rotation is read from the tracking rather than from the parent transform.
-            // Both end up the same, but the parent's copy is only written by its own
-            // before-render callback, and nothing orders that against ours — reading the
-            // source directly removes the question entirely.
+            // Offset in RIG space, not hand space: in hand space it becomes a lever arm and
+            // moving the grenade moves its centre of rotation too. The rotation comes from
+            // the tracking rather than the parent, whose copy is written by its own
+            // before-render callback with no ordering against ours.
             var rot = InputTracking.GetLocalRotation(XRNode.LeftHand);
             var offset = new Vector3(Plugin.CfgGrenadeOffX.Value,
                                      Plugin.CfgGrenadeOffY.Value,

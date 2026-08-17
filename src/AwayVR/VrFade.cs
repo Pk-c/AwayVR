@@ -1,37 +1,20 @@
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace AwayVR
 {
     /// <summary>
-    /// A fade of our own, covering scene transitions.
+    /// Our own fade, for CHARACTER SWAPS only. Mirroring the game's plate was tried and
+    /// cannot work: it never ramps, the game switches it on and off outright.
     ///
-    /// The first attempt mirrored the game's plate: read its colour and alpha every frame and
-    /// paint them onto a surface in front of the eyes. That could never work, and measurement
-    /// is what showed why — the plate does not ramp at all. The game switches
-    /// 'Fade_In_noir(Clone)' on and off outright, which is invisible on a flat screen because
-    /// the scene load itself covers the cut. Mirroring a value that only ever reads 0 or 1
-    /// gives exactly what was reported: it shows, then it disappears.
+    /// The game's plate is silenced regardless - on the floating HUD panel it is just an ugly
+    /// black rectangle.
     ///
-    /// So we drive the fade ourselves. It punctuates CHARACTER SWAPS only: covering scene
-    /// loads as well was tried and dropped, because the load already blanks the view and a
-    /// second cover on top of it just delayed getting back to the game.
-    ///
-    /// The game's own plate is silenced regardless — on the floating HUD panel it is nothing
-    /// but an ugly black rectangle, and that holds whether or not we draw a fade of our own.
-    ///
-    /// Two things follow from this being ours rather than borrowed: the timing is a setting
-    /// rather than a guess, and the surface is head-locked with no follow lag — a fade you can
-    /// peek around the edge of is not a fade.
-    ///
-    /// The surface is created once, at start-up, and survives scene loads. It is deliberately
-    /// left at the root rather than parented to the camera that renders it: parenting a
-    /// DontDestroyOnLoad object to a scene object destroys its persistence, and the panel
-    /// camera is rebuilt with every scene. So it is placed in world coordinates instead,
-    /// which for a full-screen black plate costs nothing in accuracy and means the cover is
-    /// already standing the instant a scene comes up.
+    /// The surface is created once at start-up and kept at the root, not parented to the
+    /// panel camera: parenting a DontDestroyOnLoad object to a scene object would destroy its
+    /// persistence, and that camera is rebuilt with every scene. It is placed in world
+    /// coordinates instead, so the cover is already standing when a scene comes up.
     /// </summary>
     internal static class VrFade
     {
@@ -58,7 +41,7 @@ namespace AwayVR
         /// Call when a scene has just come up: covers the view, then fades out.
         ///
         /// This is what removes the second of raw scene you used to see before the game's own
-        /// plate appeared. We do not wait to discover anything — the cover goes up first, and
+        /// plate appeared. We do not wait to discover anything - the cover goes up first, and
         /// the search for the game's plate happens behind it.
         /// </summary>
         public static void OnSceneLoaded()
@@ -68,7 +51,6 @@ namespace AwayVR
             Silenced.Clear();
             _nextScan = 0f;
             _alpha = 0f;
-            _lastCharacter = null;
         }
 
         /// <summary>
@@ -78,16 +60,20 @@ namespace AwayVR
         private static void SilenceGamePlates()
         {
             // Known plates are silenced EVERY frame. Only the search is throttled: the game
-            // switches its plate back on for a single frame when it flashes one — on a
-            // character swap, for instance — and a sweep every half second let exactly that
+            // switches its plate back on for a single frame when it flashes one - on a
+            // character swap, for instance - and a sweep every half second let exactly that
             // through as a black rectangle on the HUD.
             foreach (var kv in Silenced)
                 if (kv.Key != null && kv.Key.enabled) kv.Key.enabled = false;
 
+            // The search stops as soon as it succeeds. A scene has its fade plate or it has
+            // none, and once found it is silenced every frame from the list above - there is
+            // nothing left to look for.
+            //
+            // It is re-armed on a character swap because that is precisely when the game
+            // flashes a plate, and a scene that had none until then may have built one.
+            if (Silenced.Count > 0 && !GameState.CharacterChanged) return;
             if (Time.unscaledTime < _nextScan) return;
-            // The plates belong to the scene and are found once; only a late-created one
-            // needs catching, which two seconds does as well as half a second for a quarter
-            // of the cost.
             _nextScan = Time.unscaledTime + 2f;
 
             float screenWidth = Mathf.Max(Screen.width, 1);
@@ -150,10 +136,6 @@ namespace AwayVR
         /// <summary>Duration of the fade out currently running.</summary>
         private static float _duration = 0.6f;
 
-        private static string _lastCharacter;
-        private static FieldInfo _fCharacter;
-        private static bool _characterResolved;
-
         /// <summary>
         /// Punctuates a character swap with a short fade.
         ///
@@ -164,22 +146,8 @@ namespace AwayVR
         private static void WatchCharacterSwap()
         {
             if (!Plugin.CfgFadeOnCharacterSwap.Value) return;
-
-            if (!_characterResolved)
-            {
-                _characterResolved = true;
-                var t = HarmonyLib.AccessTools.TypeByName("Slots_Handler");
-                if (t != null) _fCharacter = HarmonyLib.AccessTools.Field(t, "active_char");
-            }
-            if (_fCharacter == null) return;
-
-            var now = _fCharacter.GetValue(null) as string;
-            if (now == _lastCharacter) return;
-
-            bool first = _lastCharacter == null;
-            _lastCharacter = now;
-            // No flash on the very first read: that is start-up, not a swap.
-            if (!first) Flash(0f, Plugin.CfgCharacterFadeDuration.Value);
+            if (!GameState.CharacterChanged) return;
+            Flash(0f, Plugin.CfgCharacterFadeDuration.Value);
         }
 
         /// <summary>Creates the surface once, at start-up, ahead of any scene load.</summary>
@@ -253,7 +221,7 @@ namespace AwayVR
 
             // Black, like the game's own transitions. Deliberately not a setting: BepInEx
             // has no guaranteed converter for Color, and an unsupported type makes the whole
-            // plugin fail to load — far too high a price for an option nobody asked for.
+            // plugin fail to load - far too high a price for an option nobody asked for.
             _image.color = new Color(0f, 0f, 0f, Mathf.Clamp01(_alpha));
 
             Place();
@@ -264,8 +232,8 @@ namespace AwayVR
         {
             if (_canvas == null || !_canvas.enabled) return;
 
-            // Follows whichever camera can draw it. The panel camera is preferred — it is
-            // the one whose layer we live on — with the main camera as a fallback for the
+            // Follows whichever camera can draw it. The panel camera is preferred - it is
+            // the one whose layer we live on - with the main camera as a fallback for the
             // frames just after a scene load, before that camera has been rebuilt.
             var eye = PanelOverlay.Anchor;
             if (eye == null && VrManager.MainCamera != null) eye = VrManager.MainCamera.transform;
@@ -291,3 +259,4 @@ namespace AwayVR
         }
     }
 }
+

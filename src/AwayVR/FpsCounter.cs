@@ -5,19 +5,9 @@ using UnityEngine.XR;
 namespace AwayVR
 {
     /// <summary>
-    /// Frame rate readout, parked in a corner of the view.
-    ///
-    /// It shows the smoothed rate AND the worst frame of the last few seconds, because the
-    /// question a headset raises is never "what is the average" but "did it hitch". An
-    /// average sits comfortably at the refresh rate while a stutter every two seconds ruins
-    /// the experience; the running minimum is what makes that visible.
-    ///
-    /// Colour is judged against the headset's ACTUAL refresh rate rather than a fixed 90:
-    /// what counts as a drop is 72 on a Quest and 90 on an Index, and a fixed threshold
-    /// would cry wolf on one and stay silent on the other.
-    ///
-    /// Head-locked with no follow lag, unlike the HUD. A readout you have to chase around
-    /// the view to read is worse than none, and it is small enough to ignore.
+    /// Frame rate readout in a corner of the view. Shows the smoothed rate and the worst
+    /// frame of the last few seconds: an average sits at the refresh rate while a stutter
+    /// every two seconds ruins the experience. Judged against the headset's own refresh rate.
     /// </summary>
     internal static class FpsCounter
     {

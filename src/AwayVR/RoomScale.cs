@@ -6,17 +6,13 @@ namespace AwayVR
     /// <summary>
     /// Room-scale movement: physically walking moves the character.
     ///
-    /// This is driven by the CHANGE in head pose, never by its absolute position. With the
-    /// absolute value, moving the body and then compensating the rig left the measured
-    /// offset unchanged on the next frame, and the character walked away forever.
+    /// Driven by the CHANGE in head pose, never its absolute position - with the absolute
+    /// value, compensating the rig left the measured offset unchanged and the character
+    /// walked away forever.
     ///
-    /// For each physical step dH: the CharacterController advances by dH (so with
-    /// collisions), and the rig moves back by whatever distance was actually covered. The
-    /// camera then sits at a CONSTANT offset from the capsule, which is exactly what we
-    /// want: collisions stay underneath the head.
-    ///
-    /// The pose is read from InputTracking rather than from the camera, which keeps it
-    /// independent of the compensation we have just applied.
+    /// Each step advances the CharacterController (so with collisions) and moves the rig back
+    /// by the distance actually covered, keeping the camera at a constant offset from the
+    /// capsule. The pose comes from InputTracking, independent of that compensation.
     /// </summary>
     internal static class RoomScale
     {

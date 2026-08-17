@@ -5,21 +5,9 @@ using UnityEngine.SceneManagement;
 namespace AwayVR
 {
     /// <summary>
-    /// Hides the scene one root object at a time.
-    ///
-    /// The layer walk proved the ghost is ordinary geometry but could not go further: the
-    /// desert keeps everything on Default, so hiding that layer hides the scene. This is the
-    /// same method one level finer — the scene's roots are `_CliffAreas`, `_Particles`,
-    /// `_OpenAreaEntrance`, `_PNJs` and a dozen more, and the ghost belongs to exactly one of
-    /// them.
-    ///
-    /// RENDERERS are switched off, never the GameObject. Deactivating a root would stop its
-    /// scripts, its colliders and its triggers, and a scene that has stopped working tells
-    /// you nothing about what it was drawing. Only the drawing is removed.
-    ///
-    /// Deliberately no filtering by name or by guess. Every previous attempt at this bug
-    /// started from a theory about which component was at fault and each one was wrong; this
-    /// walks the whole scene and lets the answer fall out.
+    /// Hides the scene one root object at a time, to find which one draws an artefact.
+    /// Renderers are switched off, never the GameObject: deactivating a root would stop its
+    /// scripts and colliders, and a broken scene says nothing about what it was drawing.
     /// </summary>
     internal static class RootBisect
     {
@@ -109,7 +97,7 @@ namespace AwayVR
 
         /// <summary>
         /// Full inventory of the selected root: every renderer with its shader, plus the
-        /// component types that draw something without being a renderer at all — projectors,
+        /// component types that draw something without being a renderer at all - projectors,
         /// reflection probes, cameras, line and trail renderers. Once the walk has named the
         /// root, this is what names the object inside it.
         /// </summary>

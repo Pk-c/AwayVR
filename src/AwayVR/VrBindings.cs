@@ -5,14 +5,10 @@ namespace AwayVR
     /// <summary>
     /// Maps the game's actions onto the VR controller inputs.
     ///
-    /// The game only ever reads "any joystick", which MERGES the two hands: a left-hand
-    /// button and its right-hand counterpart report the same index, so acting with one hand
-    /// triggered the action bound to the other. We therefore read the PER-DEVICE key codes,
-    /// and above all we REPLACE the original read rather than adding to it — otherwise the
-    /// confusion remains.
-    ///
-    /// Device indices are not fixed — plugging in an Xbox pad takes the first slot — so we
-    /// resolve them by the NAME Unity reports.
+    /// The game reads "any joystick", which merges the two hands - a left button and its
+    /// right counterpart share an index. We read PER-DEVICE key codes and REPLACE the
+    /// original read rather than adding to it. Device indices are resolved by the name Unity
+    /// reports, since plugging in a pad shifts them.
     /// </summary>
     internal static class VrBindings
     {
@@ -29,7 +25,7 @@ namespace AwayVR
             public string Axis;
 
             /// <summary>
-            /// Which way the axis has to move: 0 for either (a grip, a trigger — travel with
+            /// Which way the axis has to move: 0 for either (a grip, a trigger - travel with
             /// no direction to it), +1 or -1 for a stick, where up and down are two separate
             /// inputs on one axis.
             /// </summary>
@@ -105,18 +101,12 @@ namespace AwayVR
         };
 
         /// <summary>
-        /// Indices measured with the controller probe. Only eight physical inputs respond.
+        /// Indices measured with the controller probe; only eight physical inputs respond.
         ///
-        /// Face buttons: B and Y are the ones that report, at indices 0 and 2 — not A and X.
-        /// Unity's OpenVR mapping was designed around the Vive wand, which has no A button
-        /// but does have a menu button: Unity therefore exposes ApplicationMenu_Press, where
-        /// the Touch binding wires B and Y, and leaves A_Press — where A and X are wired —
-        /// with no slot at all.
-        ///
-        /// Grips: SteamVR declares them in "trigger" mode, so they are analog, read through
-        /// axes 10 and 11. We first wrote them as "button OR axis" out of caution — wrongly:
-        /// buttons 16 and 17 are the capacitive TOUCH, not the click. Merely resting a
-        /// finger on the grip fired them, short-circuiting the axis threshold entirely.
+        /// Face buttons: B and Y report at 0 and 2, not A and X - Unity's OpenVR mapping was
+        /// built around the Vive wand and leaves A_Press with no slot. Grips are analog
+        /// (axes 10 and 11); buttons 16 and 17 are the capacitive TOUCH, not the click, and
+        /// using them fired on a resting finger.
         /// </summary>
         private static readonly string[] Defaults =
         {
@@ -158,16 +148,9 @@ namespace AwayVR
         public static string Text(Action a) { return _entries[(int)a].Value; }
 
         /// <summary>
-        /// A binding reads on two levels: variants separated by '|', of which only ONE needs
-        /// to be satisfied, each made of keys joined by '+' that must all be held.
-        ///
-        /// The AND form is for when no free input is left: the VR settings take both stick
-        /// clicks, which are already assigned individually to run and to the game menu.
-        ///
-        /// The OR form is for inputs whose exact shape on the Unity side is unknown. Grips
-        /// are analog yet also expose a click at the end of their travel: writing them as
-        /// "R:17|AX:AwayVR_GripR" makes them respond either way, without depending on a
-        /// guess about the mapping table.
+        /// Variants separated by '|', of which one must be satisfied; keys joined by '+'
+        /// must all be held. The AND form exists because the VR settings need both stick
+        /// clicks, each already bound on its own.
         /// </summary>
         public static Key[][] Variants(Action a)
         {
@@ -434,7 +417,7 @@ namespace AwayVR
         /// <summary>
         /// Logs an action's state changes. Without this there is no telling whether a mute
         /// command comes from an input that never reports, or from the game ignoring the
-        /// action — two causes calling for opposite fixes.
+        /// action - two causes calling for opposite fixes.
         /// </summary>
         private static void Trace(Action a, bool held)
         {
@@ -539,7 +522,7 @@ namespace AwayVR
                 // ONLY in the menu scenes: measured, its instance is absent during play.
                 // While playing, the one and only pause command is Cancel, read by the Pause
                 // class. So Cancel is what carries "the menu", and cancelling is the same
-                // command — the game does not distinguish them.
+                // command - the game does not distinguish them.
                 case "Cancel": a = Action.GameMenu; return true;
 
                 // Map tabs. InGameMenu does NOT go through InputAction.NextTab, which only

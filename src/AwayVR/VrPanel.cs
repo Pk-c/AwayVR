@@ -33,8 +33,8 @@ namespace AwayVR
             _image.raycastTarget = false;
 
             // Draw OVER the scenery. The panel camera only clears depth and renders last, so
-            // the depth test has to be neutralised: otherwise geometry already drawn — a
-            // nearby wall or NPC — would hide the panel.
+            // the depth test has to be neutralised: otherwise geometry already drawn - a
+            // nearby wall or NPC - would hide the panel.
             var mat = new Material(Shader.Find("UI/Default"));
             mat.SetInt("unity_GUIZTestMode", (int)CompareFunction.Always);
             _image.material = mat;
@@ -65,18 +65,12 @@ namespace AwayVR
         /// <summary>
         /// Places the panel in front of the gaze, level, with a damped follow.
         ///
-        /// The pose is written in WORLD space even though the panel is a child of the camera
-        /// that renders it. Both matter, for different reasons:
+        /// The pose is written in WORLD space although the panel is a child of the camera
+        /// that draws it. Being that camera's child keeps the framing right whatever pose
+        /// Unity re-latches before drawing; writing a world rotation cancels the parent's
+        /// pitch and roll, which otherwise tipped the panel over when you leaned.
         ///
-        ///  - being a child of its own render camera means the framing is right whatever
-        ///    pose Unity re-latches just before drawing, which is what used to shift the
-        ///    panel on screen when we placed it relative to the main camera instead;
-        ///  - writing a world rotation cancels the parent's pitch and roll. Inheriting the
-        ///    full head pose made the panel tip over as soon as you leaned your head, and
-        ///    a heads-up display has no business doing that.
-        ///
-        /// The yaw and its damping come from GazeFollow, shared with the game's virtual
-        /// screens so the two can never drift apart.
+        /// Yaw and damping come from GazeFollow, shared with the virtual screens.
         /// </summary>
         public void Place(float distance, float width, int pixelWidth, int pixelHeight)
         {

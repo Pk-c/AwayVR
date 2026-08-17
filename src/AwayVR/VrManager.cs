@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -72,16 +72,11 @@ namespace AwayVR
         private void OnDisable() { Application.onBeforeRender -= PlaceBeforeRender; }
 
         /// <summary>
-        /// Re-places everything that has to sit exactly where the head is, in the very last
-        /// moment before the frame is drawn.
+        /// Re-places everything that must sit exactly where the head is. LateUpdate is too
+        /// early: Unity re-latches the head pose after it, so anything compensating for a
+        /// head or hand rotation there works from a value one frame stale.
         ///
-        /// LateUpdate is too early: Unity re-latches the head pose after it, so anything that
-        /// compensates for a head or hand rotation there works from a value one frame stale.
-        /// That is what made the HUD shimmer when nodding and the grenade tremble in the
-        /// hand â€” the same defect, seen twice.
-        ///
-        /// Only placement runs here. The damping and every other decision stay in LateUpdate,
-        /// because they integrate over deltaTime and would advance twice per frame.
+        /// Placement only - damping integrates over deltaTime and would advance twice.
         /// </summary>
         private void PlaceBeforeRender()
         {
@@ -120,7 +115,7 @@ namespace AwayVR
             // refuses to initialise without so much as an error message, which makes the
             // failure very hard to read: so we name it here.
             var gfx = SystemInfo.graphicsDeviceType;
-            Log("Graphics API: " + gfx + " â€” " + SystemInfo.graphicsDeviceVersion);
+            Log("Graphics API: " + gfx + " - " + SystemInfo.graphicsDeviceVersion);
             if (gfx != GraphicsDeviceType.Direct3D11)
             {
                 Err("Unity 2017 VR requires Direct3D 11, but the game is running on " + gfx + ".");
@@ -180,7 +175,7 @@ namespace AwayVR
         /// <summary>
         /// Replaces Unity's default skybox with a black background.
         ///
-        /// Screens with no scenery â€” the rewards screen after a death, for instance â€” leave
+        /// Screens with no scenery - the rewards screen after a death, for instance - leave
         /// Unity's procedural skybox in place. Flat, it goes unnoticed behind the interface;
         /// in VR you end up standing in an empty blue sky, which breaks the scene entirely.
         /// We touch ONLY the default skybox: the ones the game chose itself are intended
@@ -217,11 +212,14 @@ namespace AwayVR
         {
             if (!VrActive) return;
             Weapons.Forget();
+            Weapons.OnSceneLoaded();
             PlayerBody.Forget();
             VrFade.OnSceneLoaded();
             CameraEffects.ForgetOriginals();
             LayerBisect.Reset();
             RootBisect.Reset();
+            GameState.OnSceneLoaded();
+            Swing.OnSceneLoaded();
             _fpc = null;
             Refraction.Forget();
             WeaponEffects.Forget();
@@ -412,7 +410,7 @@ namespace AwayVR
         /// Makes the virtual screens follow exactly like the HUD panel.
         ///
         /// The title poster and the menu have to stay together: they are designed to be seen
-        /// as one. So they do not merely use similar settings, they share the SAME source â€”
+        /// as one. So they do not merely use similar settings, they share the SAME source -
         /// GazeFollow for the orientation, and the HUD's own distance and width for the
         /// geometry. Two independent follows, however carefully tuned, always ended up a few
         /// degrees apart, and that is immediately visible.
@@ -480,7 +478,7 @@ namespace AwayVR
 
             // Attached to the shared anchor, world pose preserved: the offset measured here
             // becomes a local one, and the screen will then follow the gaze without us ever
-            // touching its rotation â€” a quad has a front face, and resetting it to identity
+            // touching its rotation - a quad has a front face, and resetting it to identity
             // would flip it.
             child.SetParent(EnsureScreenAnchor(), true);
 
@@ -618,23 +616,13 @@ namespace AwayVR
         }
 
         /// <summary>
-        /// The weapons camera must draw NOTHING while still RENDERING. Those are two
-        /// different things, and the distinction matters here.
+        /// The weapons camera must draw nothing while still RENDERING. Its layer is merged
+        /// into the main camera, so letting it draw shows the weapon twice - but disabling it
+        /// kills the per-character full-screen filters, which the game hangs on this very
+        /// camera and which need OnRenderImage to run.
         ///
-        /// Its layer is already merged into the main camera, so letting it draw shows the
-        /// weapon a second time, flattened against the screen â€” the double arm. But simply
-        /// disabling the camera turned out to cost far more than it fixed: the game hangs its
-        /// full-screen filters on this very camera â€”
-        ///
-        ///     GameObject.Find("Weapons_Camera").GetComponent&lt;CameraFilterPack_Blur_GaussianBlur&gt;()
-        ///
-        /// â€” and a disabled camera never renders, so its OnRenderImage never runs and every
-        /// one of those effects dies with it. That is why the character filters only appeared
-        /// after a cutscene: the game re-enabled the camera, and our sweep put it back to
-        /// sleep moments later.
-        ///
-        /// Emptying the culling mask instead gives us both: the camera still renders, so its
-        /// image effects still process the frame, but it has nothing of its own to draw.
+        /// An empty culling mask gives both. See also WeaponEffects, which moves those
+        /// filters elsewhere so the camera can be switched off outright.
         /// </summary>
         private static void KeepWeaponsCameraBlind()
         {
@@ -708,12 +696,17 @@ namespace AwayVR
             // cancel the translation it writes onto the viewmodel.
             Weapons.Fixer();
 
+            // Before every consumer: the flags it publishes are read by the fade, the melee
+            // detection, the player body and the weapon holder check, all of which used to
+            // discover the same events by sweeping the scene on their own timer.
+            GameState.Tick();
+
             Swing.Tick();
             RoomScale.Tick();
 
             // Panels placed AFTER the head pose has been updated. In Update we computed
             // their position from a pose one frame stale, and the panel shook on every head
-            // movement â€” the same reason that forces the viewmodel correction to happen here
+            // movement - the same reason that forces the viewmodel correction to happen here
             // rather than in Update.
             KeepWeaponsCameraBlind();
 
@@ -761,7 +754,7 @@ namespace AwayVR
                 _nextEffectSweep = Time.unscaledTime + 0.5f;
                 // ONE pass over the cameras for all of it. Each world brings its own
                 // camera carrying its own copies of these effects, and the game switches
-                // several of them back on as it goes, so the sweep has to keep happening —
+                // several of them back on as it goes, so the sweep has to keep happening -
                 // but it has no reason to happen six times over.
                 CameraEffects.Sweep(Plugin.CfgDisableBloom.Value,
                                     Plugin.CfgDisableColorGrading.Value,
@@ -777,7 +770,7 @@ namespace AwayVR
                 CanvasTools.Apply(false);
 
                 // Re-evaluated on every sweep, not only at scene setup: the player can
-                // vanish without a scene change â€” on death the progression screen appears
+                // vanish without a scene change - on death the progression screen appears
                 // while InGame would have stayed true, and the HUD there would have demanded
                 // a grip to show up.
                 // Cached rather than searched every sweep: FindObjectOfType walks every
@@ -819,5 +812,6 @@ namespace AwayVR
         }
     }
 }
+
 
 

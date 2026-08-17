@@ -1,4 +1,4 @@
-﻿using BepInEx;
+using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -124,7 +124,7 @@ namespace AwayVR
             CfgResolutionScale = Config.Bind("01 - XR", "ResolutionScale", 1.3f,
                 new ConfigDescription(
                     "Eye texture supersampling. The game renders deferred, where MSAA does "
-                    + "not exist, so this is the ONLY anti-aliasing available — hence a "
+                    + "not exist, so this is the ONLY anti-aliasing available - hence a "
                     + "default well above 1. Lower it if the frame rate suffers.",
                     new AcceptableValueRange<float>(0.5f, 2.0f)));
             CfgAnisotropic = Config.Bind("06 - Visuals", "ForceAnisotropic", true,
@@ -140,7 +140,7 @@ namespace AwayVR
                 "Shadow map resolution. The game's preset stops at High.");
             CfgShadowDistance = Config.Bind("06 - Visuals", "ShadowDistance", 100f,
                 new ConfigDescription("How far shadows are cast, in metres. The game ships "
-                    + "100. The heaviest single lever in an open area — a desert casts "
+                    + "100. The heaviest single lever in an open area - a desert casts "
                     + "shadows to the horizon where a dungeon has almost none, which is why "
                     + "one drops below the headset's refresh rate and the other does not.",
                     new AcceptableValueRange<float>(10f, 200f)));
@@ -151,11 +151,11 @@ namespace AwayVR
             CfgDisableTemporalAA = Config.Bind("06 - Visuals", "DisableTemporalAA", false,
                 "Switches off the game's temporal anti-aliasing. It keeps a single frame of "
                 + "history per camera, which in stereo means each eye is blended with the "
-                + "other one — the ghosting. Leave it on unless you want to see the effect.");
+                + "other one - the ghosting. Leave it on unless you want to see the effect.");
             CfgDisableOcclusion = Config.Bind("06 - Visuals", "DisableAmbientOcclusion", true,
                 "Switches off Amplify Occlusion. It rebuilds world positions from the depth "
                 + "buffer using the camera's single set of matrices, so in stereo its dark "
-                + "contours land beside the geometry rather than on it — a shadow copy of the "
+                + "contours land beside the geometry rather than on it - a shadow copy of the "
                 + "world, offset by the eye separation.");
             CfgDisableGlobalFog = Config.Bind("06 - Visuals", "DisableGlobalFog", false,
                 "Switches off GlobalFog, which reconstructs the scene the same monoscopic way. "
@@ -174,7 +174,7 @@ namespace AwayVR
                 "Disables Weapons_Camera instead of leaving it running blind, moving its "
                 + "per-character effects onto the main camera first so nothing is lost. The "
                 + "camera renders nothing and clears depth only, so its colour buffer holds "
-                + "whatever was there before — and its effect chain composites that onto the "
+                + "whatever was there before - and its effect chain composites that onto the "
                 + "screen. That is the stale half-transparent frame.");
             CfgFpsCounter = Config.Bind("06 - Visuals", "FpsCounter", false,
                 "Shows the frame rate, and the worst frame of the last few seconds, in the "
@@ -348,7 +348,7 @@ namespace AwayVR
                     new AcceptableValueRange<float>(-0.5f, 0.5f)));
             CfgGrenadeGesture = Config.Bind("034 - Weapons", "GrenadeGesture", true,
                 "Squeeze the left trigger fully to arm the grenade, release it fully to throw. "
-                + "Off, the trigger throws on the press â€” which fires at the lightest touch.");
+                + "Off, the trigger throws on the press - which fires at the lightest touch.");
             CfgGrenadeAimFromMotion = Config.Bind("034 - Weapons", "GrenadeAimFromMotion", true,
                 "Throw where the hand is actually moving. Below the speed threshold the "
                 + "grenade goes where the hand points instead, so a still release still aims.");
@@ -417,6 +417,7 @@ namespace AwayVR
             _harmony.PatchAll(typeof(Patches.InputPatches));
             _harmony.PatchAll(typeof(Patches.InputRedirect));
             _harmony.PatchAll(typeof(Grenades));
+            _harmony.PatchAll(typeof(Swing));
             Patches.InputRedirect.Apply(_harmony);
             ImguiCapture.Apply(_harmony);
             int n = 0;

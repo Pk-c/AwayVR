@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AwayVR.Menu
@@ -50,7 +50,7 @@ namespace AwayVR.Menu
             _items.Clear();
 
             // Deliberately a SHORT list. Every setting still exists and is still read; what
-            // was taken out of the menu is what gets set once and never touched again â€” the
+            // was taken out of the menu is what gets set once and never touched again - the
             // weapon's position in the hand, the grenade's offsets, the arming thresholds.
             // Those live in the config file, where they belong: a menu you scroll through
             // hides the four or five settings that are genuinely worth changing.

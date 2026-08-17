@@ -18,14 +18,10 @@ namespace AwayVR.Patches
     }
 
     /// <summary>
-    /// Patches on FirstPersonController. Three concerns:
-    ///
-    ///  - the headset owns head orientation: the game must no longer write either the pitch
-    ///    or the camera's local position;
-    ///  - yaw moves from MouseLook to a configurable snap/smooth turn;
-    ///  - movement becomes relative to the GAZE rather than the body, otherwise walking
-    ///    forward does not go where you are looking as soon as you turn your head, which is
-    ///    the single biggest source of discomfort.
+    /// Patches on FirstPersonController: the headset owns head orientation (the game must
+    /// write neither pitch nor camera local position), yaw moves to a snap/smooth turn, and
+    /// movement becomes relative to the GAZE rather than the body - walking somewhere other
+    /// than where you look is the single biggest source of discomfort.
     /// </summary>
     internal static class FpcPatches
     {
@@ -134,7 +130,7 @@ namespace AwayVR.Patches
             if (delta == 0f) return;
 
             // Rotate around the HEAD, not the body origin. As soon as the camera is offset
-            // from the capsule — room-scale, or simply a physical side step — turning around
+            // from the capsule - room-scale, or simply a physical side step - turning around
             // the body flings the player sideways.
             var cam = VrManager.MainCamera;
             if (cam == null)

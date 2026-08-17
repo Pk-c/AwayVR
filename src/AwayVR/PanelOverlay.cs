@@ -3,17 +3,11 @@ using UnityEngine;
 namespace AwayVR
 {
     /// <summary>
-    /// A render pass dedicated to the mod's panels, shielded from the game's effects.
+    /// A render pass dedicated to the mod's panels, shielded from the game's effects - the
+    /// diary's full-screen blur and the permanent bloom were landing on the HUD.
     ///
-    /// A world-space canvas is drawn by the main camera, so it inherits all of that camera's
-    /// post-processing. The diary applies a full-screen blur, and bloom and occlusion run
-    /// permanently — the HUD and the dialogue box picked all of it up even though nothing
-    /// should affect them.
-    ///
-    /// So we isolate the panels on a layer of our own, removed from the main camera's
-    /// culling mask and rendered by a secondary camera sharing the same pose. That camera
-    /// clears depth only, carries no effects, and renders afterwards: the panels are
-    /// composited on top of the finished image, perfectly sharp.
+    /// The panels live on a layer of their own, removed from the main camera's mask and drawn
+    /// by a sibling camera with the same pose, which clears depth only and carries no effects.
     /// </summary>
     internal static class PanelOverlay
     {
@@ -88,17 +82,9 @@ namespace AwayVR
         }
 
         /// <summary>
-        /// Aligns the panel camera with the main one. Call EVERY FRAME, in LateUpdate, once
-        /// the head pose has been written.
-        ///
-        /// I had relied on Unity to apply the same pose to both stereo cameras. Nothing
-        /// guarantees that, and the near plane staying at its original value proved it:
-        /// synchronisation only happened at creation, before the main camera had even been
-        /// configured. A misaligned camera displaces everything it renders — the HUD looked
-        /// too high, and ended up covering the menu entirely.
-        ///
-        /// The copy is idempotent: if Unity already poses this camera we write the same
-        /// value, otherwise we correct it. Either way the result is right.
+        /// Aligns the panel camera with the main one. Call every frame: nothing guarantees
+        /// Unity poses both stereo cameras alike, and a misaligned camera displaces
+        /// everything it renders. The copy is idempotent.
         /// </summary>
         public static void Synchronise(Camera main)
         {

@@ -3,14 +3,12 @@ using HarmonyLib;
 namespace AwayVR.Patches
 {
     /// <summary>
-    /// VR bindings for the actions that go through the InputM facade.
+    /// VR bindings for the actions going through InputM.GetAction, the single funnel for
+    /// attacks, guarding and navigation - hooking it remaps all of them and inherits the
+    /// game's animations, trails and hit boxes for free.
     ///
-    /// InputM.GetAction is the single funnel for attacks, guarding and navigation: hooking
-    /// it is enough to remap all of them, and we inherit the game's whole chain for free —
-    /// animations, trails, hit boxes, timings.
-    ///
-    /// The prefix REPLACES the original read for reassigned actions. Merely adding to it
-    /// would not do: the left trigger becomes the grenade, so it must stop triggering guard.
+    /// The prefix REPLACES the original read: the left trigger becomes the grenade, so it
+    /// must stop triggering guard.
     /// </summary>
     internal static class InputPatches
     {

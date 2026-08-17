@@ -3,23 +3,11 @@ using UnityEngine;
 namespace AwayVR
 {
     /// <summary>
-    /// Quality settings the game leaves on the table.
+    /// Quality settings the game's High preset leaves low: shadow cascades, shadow map
+    /// resolution, anisotropic filtering. Note the game renders deferred, where MSAA does
+    /// not exist - supersampling is the only anti-aliasing available.
     ///
-    /// AWAY ships two quality levels, Low and High, and runs on High. Reading that preset
-    /// shows what is and is not worth touching: texture quality is already at full
-    /// resolution, soft particles and camera-facing billboards are already on, so there is
-    /// nothing to win there. What it does leave low are the shadow cascades, the shadow map
-    /// resolution and the anisotropic filtering mode.
-    ///
-    /// One thing is NOT available and it shapes everything else: the game renders DEFERRED
-    /// (renderingPath 3 on all three tiers), and MSAA does not exist in deferred — Unity
-    /// ignores QualitySettings.antiAliasing entirely. That is why the preset ships with
-    /// antiAliasing at 0 on both levels: it is not an oversight. The only anti-aliasing
-    /// available to us is supersampling through XRSettings.eyeTextureResolutionScale, which
-    /// is why that setting carries most of the visual improvement on its own.
-    ///
-    /// Re-applied rather than set once: QualitySettings are global, but the game calls
-    /// SetQualityLevel of its own accord and that resets every one of them.
+    /// Re-applied rather than set once: the game calls SetQualityLevel on its own.
     /// </summary>
     internal static class Visuals
     {
@@ -27,7 +15,7 @@ namespace AwayVR
         {
 
             // ForceEnable, not Enable. The preset already says Enable, which only honours the
-            // per-texture flag — and the game's textures largely do not set it. Forcing it is
+            // per-texture flag - and the game's textures largely do not set it. Forcing it is
             // what actually sharpens floors and walls seen at a grazing angle, and it is close
             // to free on any GPU that can drive a headset at all.
             if (Plugin.CfgAnisotropic.Value)
