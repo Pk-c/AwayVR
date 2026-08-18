@@ -33,6 +33,7 @@ namespace AwayVR
         internal static ConfigEntry<bool> CfgFpsCounter;
         internal static ConfigEntry<bool> CfgRecenterOnLoad;
         internal static ConfigEntry<bool> CfgRoomScaleMove;
+        internal static ConfigEntry<float> CfgRoomScaleDeadzone;
         internal static ConfigEntry<bool> CfgBlockCameraOnWalls;
 
         // --- camera ---
@@ -211,6 +212,13 @@ namespace AwayVR
                 + "on the character's eye height: this game has a fixed height, and floor-based "
                 + "tracking does not fit it.");
 
+            CfgRoomScaleDeadzone = Config.Bind("01 - XR", "RoomScaleDeadzone", 0.002f,
+                new ConfigDescription("How far the head must move before the character is\n"
+                    + "advanced, in metres. Below this the mod calls the game's "
+                    + "CharacterController every frame for tracking noise, which "
+                    + "competes with the game's own movement. Raise it if walking "
+                    + "feels held back; lower it for tighter one-to-one stepping.",
+                    new AcceptableValueRange<float>(0.0002f, 0.05f)));
             CfgBlockCameraOnWalls = Config.Bind("01 - XR", "BlockCameraOnWalls", true,
                 "The view is blocked by walls along with the body, and the collision capsule stays "
                 + "exactly under the head. When false, head tracking stays perfect but the head "
@@ -281,7 +289,7 @@ namespace AwayVR
             CfgTrailHold = Config.Bind("034 - Weapons", "TrailHold", 0.25f,
                 new ConfigDescription("How long the trail keeps emitting after the hand slows.",
                     new AcceptableValueRange<float>(0.05f, 1f)));
-            CfgSwingThreshold = Config.Bind("034 - Weapons", "SwingThreshold", 4.0f,
+            CfgSwingThreshold = Config.Bind("034 - Weapons", "SwingThreshold", 3.0f,
                 new ConfigDescription("Hand speed that triggers a swing, in m/s. Lower is more sensitive, at the risk of "
                     + "unintended swings.",
                     new AcceptableValueRange<float>(0.3f, 6f)));

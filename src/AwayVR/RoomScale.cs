@@ -23,6 +23,10 @@ namespace AwayVR
         /// <summary>Accumulated compensation, expressed in the rig parent's space.</summary>
         public static Vector3 Offset { get; private set; }
 
+        /// <summary>Last measured head step, and how many crossed the deadzone. Diagnostic.</summary>
+        public static float LastStep { get; private set; }
+        public static int Moves { get; private set; }
+
         public static void Forget()
         {
             Offset = Vector3.zero;
@@ -57,14 +61,17 @@ namespace AwayVR
             var step = flat - _lastHead;
             _lastHead = flat;
 
-            // Applied every frame, with no accumulation. The previous version waited for the
-            // total to exceed the threshold and then caught up all at once: those discrete
-            // 2 cm jumps were what made the view shake whenever it was pushed back. The
-            // threshold now only serves to ignore tracking noise.
-            // Deadzone against tracking noise. Half a millimetre: below the jitter of a
-            // stationary headset, far below any real step. There is one correct value here,
-            // so it is a constant rather than a setting nobody could tune usefully.
-            if (step.magnitude < 0.0005f) return;
+            // Applied every frame with no accumulation: waiting for a total and catching up
+            // all at once produced 2 cm jumps that shook the view.
+            //
+            // The deadzone matters more than it looks. Every step past it calls the game's own
+            // CharacterController.Move, in the same frame as the game's own movement - so a
+            // value below real tracking noise means calling it constantly for jitter, which
+            // recomputes grounding and can eat part of the walk. Half a millimetre was such a
+            // value; it is a setting again because the right figure depends on the headset.
+            LastStep = step.magnitude;
+            if (LastStep < Plugin.CfgRoomScaleDeadzone.Value) return;
+            Moves++;
 
             var world = rig.TransformVector(step);
             world.y = 0f;
