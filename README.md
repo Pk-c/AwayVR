@@ -2,6 +2,8 @@
 
 A VR mod for **AWAY: Journey to the Unexpected**
 
+![Uploading 4ee9548be3de45c8a749481b4cb737927e5d6a0ce28754fc34e935fe16c80269.jpg…]()
+
 I tried to make this mod feel like native : 6Dof, snap/smooth turn mode, tracked hands, swing-to-attack, grenades thrown with your hands, and the game's flat interface
 rebuilt as panels you can actually look at.
 
