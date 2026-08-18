@@ -15,7 +15,9 @@ If you like my work you can follow me on Patreon ( free membership ), I try to m
 
 https://patreon.com/ChromaticMod
 
-<img width="200" height="105" alt="imakevrmodforgames-preview" src="https://github.com/user-attachments/assets/0517352b-e120-47bc-b062-b85fc333f814" />
+<a href="https://patreon.com/ChromaticMod">
+  <img width="200" height="105" alt="imakevrmodforgames-preview" src="https://github.com/user-attachments/assets/0517352b-e120-47bc-b062-b85fc333f814" />
+</a>
 
 OR
 
