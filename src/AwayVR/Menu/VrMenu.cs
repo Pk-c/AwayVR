@@ -56,6 +56,10 @@ namespace AwayVR.Menu
             // hides the four or five settings that are genuinely worth changing.
 
             _items.Add(new SectionItem("Controls"));
+            _items.Add(new FloatItem("Full speed at", Plugin.CfgFullSpeedAt,
+                0.20f, 1.00f, 0.04f, 0.55f, 0.02f, "0.00", "x"));
+            _items.Add(new FloatItem("Move deadzone", Plugin.CfgMoveDeadzone,
+                0.02f, 0.50f, 0.03f, 0.15f, 0.01f, "0.00", "x"));
             _items.Add(new EnumItem("Turn mode", Plugin.CfgTurnMode,
                 new[] { "Snap", "Smooth" }));
             _items.Add(new FloatItem("Snap angle", Plugin.CfgSnapAngle,
@@ -108,6 +112,11 @@ namespace AwayVR.Menu
                 0.60f, 6.00f, 0.10f, 1.5f, 0.05f, "0.00", " m"));
 
             _items.Add(new SectionItem("Player"));
+            _items.Add(new BoolItem("Centre head on body", Plugin.CfgCentreOnBody));
+            _items.Add(new BoolItem("Room-scale walking", Plugin.CfgRoomScaleMove));
+            // Off lets the head pass through walls and keeps tracking exactly 1:1. Only bites
+            // while leaning physically into geometry, so it does nothing without room-scale.
+            _items.Add(new BoolItem("Camera blocked by walls", Plugin.CfgBlockCameraOnWalls));
             _items.Add(new FloatItem("Player height", Plugin.CfgHeightOffset,
                 -1.20f, 1.20f, 0.05f, 0.6f, 0.01f, "0.00", " m"));
 

@@ -46,6 +46,10 @@ namespace AwayVR
 
         // --- locomotion ---
         internal static ConfigEntry<bool> CfgHeadRelativeMove;
+        internal static ConfigEntry<bool> CfgAlwaysRun;
+        internal static ConfigEntry<float> CfgFullSpeedAt;
+        internal static ConfigEntry<float> CfgMoveDeadzone;
+        internal static ConfigEntry<bool> CfgCentreOnBody;
         internal static ConfigEntry<Patches.TurnMode> CfgTurnMode;
         internal static ConfigEntry<float> CfgSnapAngle;
         internal static ConfigEntry<float> CfgSmoothTurnSpeed;
@@ -245,6 +249,34 @@ namespace AwayVR
                 "Movement follows the GAZE direction rather than the body orientation. Forward goes "
                 + "where you look, and strafing is relative to the head. false = original "
                 + "behaviour, relative to the body.");
+            CfgCentreOnBody = Config.Bind("025 - Locomotion", "CentreHeadOnBody", true,
+                "Puts the camera over the collision capsule. The headset reports the head's "
+                + "position relative to the CENTRE OF THE ROOM, so standing anywhere else "
+                + "leaves the capsule metres away from where you are looking - it then scrapes "
+                + "geometry you cannot see and your walk is held back at random. Recentring "
+                + "through the headset does not fix this: OpenVR ignores it in room-scale "
+                + "space, so the offset is cancelled here instead.");
+            CfgFullSpeedAt = Config.Bind("025 - Locomotion", "FullSpeedAt", 0.55f,
+                new ConfigDescription(
+                    "Deflection at which the character reaches full speed. Beyond it the "
+                    + "pace no longer changes. The game multiplies its speed by the stick's "
+                    + "deflection with nothing in between, and a thumb on a small VR stick "
+                    + "wanders between 0.5 and 1.0 while it feels held still - which turned "
+                    + "straight into a wandering speed. Raise it for a wider analogue range, "
+                    + "lower it for a steadier pace.",
+                    new AcceptableValueRange<float>(0.2f, 1f)));
+            CfgMoveDeadzone = Config.Bind("025 - Locomotion", "MoveDeadzone", 0.15f,
+                new ConfigDescription(
+                    "Deflection below which the character does not move. Applied RADIALLY, "
+                    + "unlike the game's own 0.30 per axis, which cuts a square out of a "
+                    + "round stick and truncates the diagonals.",
+                    new AcceptableValueRange<float>(0.02f, 0.5f)));
+            CfgAlwaysRun = Config.Bind("025 - Locomotion", "AlwaysRun", true,
+                "The character always runs, and you slow down by pushing the stick less far. "
+                + "Speed is speed x |m_Input| in the game's own arithmetic, so the deflection "
+                + "is already a continuous throttle - which makes the walk/run switch a second, "
+                + "redundant speed control that flipped on its own and changed your pace "
+                + "mid-stride. Characters the game forbids from running are left alone.");
             CfgTurnMode = Config.Bind("025 - Locomotion", "TurnMode", Patches.TurnMode.Snap,
                 "Snap = stepped rotation (recommended). Smooth = continuous rotation.");
             CfgSnapAngle = Config.Bind("025 - Locomotion", "SnapAngle", 45f,

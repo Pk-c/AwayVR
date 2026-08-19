@@ -37,6 +37,8 @@ namespace AwayVR.Patches
             AccessTools.Field(typeof(FirstPersonController), "m_CurrentCharacterProfile");
         private static readonly FieldInfo FInput =
             AccessTools.Field(typeof(FirstPersonController), "m_Input");
+        private static readonly FieldInfo FIsWalking =
+            AccessTools.Field(typeof(FirstPersonController), "m_IsWalking");
 
         internal static bool FieldsResolved
         {
@@ -162,27 +164,113 @@ namespace AwayVR.Patches
         [HarmonyPostfix]
         private static void GetInput_Postfix(FirstPersonController __instance)
         {
-            if (!VrManager.VrActive || !Plugin.CfgHeadRelativeMove.Value) return;
-            if (!FieldsResolved) return;
-
-            var cam = VrManager.MainCamera;
-            if (cam == null) return;
+            if (!VrManager.VrActive || !FieldsResolved) return;
 
             var input = (Vector2)FInput.GetValue(__instance);
             if (input.sqrMagnitude < 1e-6f) return;
 
-            var headYaw = Quaternion.Euler(0f, cam.transform.eulerAngles.y, 0f);
-            var bodyYaw = Quaternion.Euler(0f, __instance.transform.eulerAngles.y, 0f);
+            input = Shape(input);
 
-            var wanted = headYaw * new Vector3(input.x, 0f, input.y);
-            var local = Quaternion.Inverse(bodyYaw) * wanted;
+            if (Plugin.CfgHeadRelativeMove.Value)
+            {
+                var cam = VrManager.MainCamera;
+                if (cam != null)
+                {
+                    // Yaw from the FLATTENED FORWARD, never from eulerAngles.y: Euler extraction
+                    // is unstable once the transform carries pitch and roll, and a head always
+                    // does. Look steeply up or down and the extracted yaw swings, which sent the
+                    // character walking somewhere other than where the stick pointed.
+                    var headYaw = FlatYaw(cam.transform);
+                    var bodyYaw = Quaternion.Euler(0f, __instance.transform.eulerAngles.y, 0f);
 
-            FInput.SetValue(__instance, new Vector2(local.x, local.z));
+                    var wanted = headYaw * new Vector3(input.x, 0f, input.y);
+                    var local = Quaternion.Inverse(bodyYaw) * wanted;
+                    input = new Vector2(local.x, local.z);
+                }
+            }
+
+            FInput.SetValue(__instance, input);
+        }
+
+        /// <summary>
+        /// Response curve on the stick: proportional up to a threshold, constant beyond it.
+        ///
+        /// The game's displacement is speed * |m_Input| with nothing in between, so deflection is
+        /// the throttle. Measured over a walk where the stick was held hard forward throughout, it
+        /// reported 0.53 to 1.00 with a median of 0.78 - a thumb simply does not hold the rim of a
+        /// small VR stick, and on a flat screen nobody notices. Multiplied straight into the speed
+        /// it becomes a pace that surges and sags under a hand that feels perfectly still.
+        ///
+        /// Saturating early leaves a deliberate half-push slower while making "pushed forward" one
+        /// single speed. The dead zone is radial, unlike the game's own square one, so a diagonal
+        /// is not truncated.
+        ///
+        /// Direction is untouched: only the length changes.
+        /// </summary>
+        private static Vector2 Shape(Vector2 input)
+        {
+            float mag = input.magnitude;
+            if (mag < 1e-6f) return Vector2.zero;
+
+            float dead = Plugin.CfgMoveDeadzone.Value;
+            float full = Mathf.Max(dead + 0.05f, Plugin.CfgFullSpeedAt.Value);
+
+            if (mag <= dead) return Vector2.zero;
+
+            float t = Mathf.Clamp01((mag - dead) / (full - dead));
+            return input / mag * t;
+        }
+
+        /// <summary>
+        /// Horizontal heading of a transform, stable at any pitch. Looking straight up or down
+        /// leaves no forward to flatten, so the up vector stands in - which is where the face
+        /// points in that pose.
+        /// </summary>
+        private static Quaternion FlatYaw(Transform t)
+        {
+            var fwd = t.forward;
+            fwd.y = 0f;
+            if (fwd.sqrMagnitude < 1e-6f)
+            {
+                fwd = t.up;
+                fwd.y = 0f;
+                if (fwd.sqrMagnitude < 1e-6f) return Quaternion.identity;
+            }
+            return Quaternion.LookRotation(fwd.normalized, Vector3.up);
         }
 
         // ------------------------------------------------------------------
         // Miscellaneous
         // ------------------------------------------------------------------
+
+        /// <summary>
+        /// The character always runs; the stick alone sets the pace.
+        ///
+        /// The game has TWO speed controls stacked on each other: a walk/run switch, and the
+        /// stick's deflection, since the displacement is speed * |m_Input|. The deflection is
+        /// already continuous, so the switch adds nothing a player would want - and it decided
+        /// for itself when to flip. It runs only while its button is HELD, returns to walking
+        /// speed the first frame it sees a release, and also on 0.15 s of neutral stick; bound to
+        /// a stick CLICK that is pushed forward at the same time, the contact broke constantly
+        /// and the pace changed mid-stride.
+        ///
+        /// So the switch is taken out of play, and the whole method with it - the timers no
+        /// longer serve anything. Characters the game forbids from running keep their own
+        /// behaviour: some scenes rely on it.
+        /// </summary>
+        [HarmonyPatch(typeof(FirstPersonController), "UpdateIsWalking")]
+        [HarmonyPrefix]
+        private static bool UpdateIsWalking_Prefix(FirstPersonController __instance)
+        {
+            if (!VrManager.VrActive || !Plugin.CfgAlwaysRun.Value) return true;
+            if (FIsWalking == null || FProfile == null) return true;
+
+            var profile = (FirstPersonController.CharacterProfile)FProfile.GetValue(__instance);
+            if (profile != null && !profile.m_CanRun) return true;
+
+            FIsWalking.SetValue(__instance, false);
+            return false;
+        }
 
         /// <summary>Kills the head bob, which writes the camera's local position.</summary>
         [HarmonyPatch(typeof(FirstPersonController), "UpdateCameraPosition")]

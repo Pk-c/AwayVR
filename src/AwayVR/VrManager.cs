@@ -162,6 +162,7 @@ namespace AwayVR
             if (Plugin.CfgOpenVrBridge.Value) OpenVrBridge.Probe();
 
             InputTracking.Recenter();
+            RequestCentre();
 
             Log("=== VR ACTIVE ===");
             Log("  device      : " + XRSettings.loadedDeviceName);
@@ -296,6 +297,7 @@ namespace AwayVR
                 // Also cancels the yaw offset accumulated before the spawn.
                 XRDevice.SetTrackingSpaceType(TrackingSpaceType.Stationary);
                 InputTracking.Recenter();
+                RequestCentre();
             }
 
             Log("Scene '" + sceneName + "' : rig VR installe sous " + Hierarchy.Path(cam.transform)
@@ -575,12 +577,66 @@ namespace AwayVR
                 + "   world IPD = " + Vector3.Distance(l, r).ToString("0.0000") + " m");
         }
 
+        /// <summary>
+        /// Horizontal offset that puts the camera over the capsule, in rig space.
+        ///
+        /// The headset reports the head relative to the centre of the play area, so this is
+        /// minus that position - without it the capsule sits wherever the room's centre happens
+        /// to be, up to a couple of metres from the player, scraping geometry out of view.
+        ///
+        /// Sampled on the frame AFTER a recentre is asked for: InputTracking.Recenter only takes
+        /// effect on the next pose, so reading it immediately would capture the old one and the
+        /// correction would be applied twice.
+        /// </summary>
+        private Vector3 _centreFlat;
+        private bool _centrePending;
+
+        internal void RequestCentre()
+        {
+            _centrePending = true;
+        }
+
+        private void UpdateCentre()
+        {
+            if (!Plugin.CfgCentreOnBody.Value) { _centreFlat = Vector3.zero; return; }
+            if (!_centrePending) return;
+
+            _centrePending = false;
+            var head = InputTracking.GetLocalPosition(XRNode.Head);
+            _centreFlat = new Vector3(-head.x, 0f, -head.z);
+
+            // The room-scale compensation was accumulated against the old centre.
+            RoomScale.Forget();
+
+            Log("Head centred on the body: offset=" + _centreFlat.ToString("0.000"));
+        }
+
+        /// <summary>
+        /// Camera to capsule, horizontally, in metres. Zero is centred.
+        ///
+        /// Every term that separates the two has to be in here. Leaving out the room-scale
+        /// compensation - the one that cancels physical walking - measured how far the player had
+        /// walked across the room instead, and reported a metre and a half of offset that was
+        /// not there.
+        /// </summary>
+        internal static float HeadOffset
+        {
+            get
+            {
+                if (!VrActive || MainCamera == null || Rig == null) return 0f;
+                var p = Rig.localPosition + MainCamera.transform.localPosition - _rigBasePos;
+                return new Vector2(p.x, p.z).magnitude;
+            }
+        }
+
         private void ApplyLive()
         {
             if (!VrActive || Rig == null) return;
 
+            UpdateCentre();
+
             Rig.localPosition = _rigBasePos + Vector3.up * Plugin.CfgHeightOffset.Value
-                               + RoomScale.Offset;
+                               + _centreFlat + RoomScale.Offset;
 
             float scale = Mathf.Max(0.01f, Plugin.CfgWorldScale.Value);
             if (!Mathf.Approximately(Rig.localScale.x, scale))
@@ -711,6 +767,7 @@ namespace AwayVR
 
             Swing.Tick();
             RoomScale.Tick();
+            WalkProbe.Tick();
 
             // Panels placed AFTER the head pose has been updated. In Update we computed
             // their position from a pose one frame stale, and the panel shook on every head
@@ -750,6 +807,7 @@ namespace AwayVR
             if (Input.GetKeyDown(Plugin.CfgRecenterKey.Value))
             {
                 InputTracking.Recenter();
+                RequestCentre();
                 Log("Vue recentree.");
             }
 

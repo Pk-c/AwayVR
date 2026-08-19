@@ -19,6 +19,7 @@ namespace AwayVR
         private static CharacterController _cc;
         private static Vector3 _lastHead;
         private static bool _hasLast;
+        private static bool _wasEnabled;
 
         /// <summary>Accumulated compensation, expressed in the rig parent's space.</summary>
         public static Vector3 Offset { get; private set; }
@@ -26,6 +27,11 @@ namespace AwayVR
         /// <summary>Last measured head step, and how many crossed the deadzone. Diagnostic.</summary>
         public static float LastStep { get; private set; }
         public static int Moves { get; private set; }
+
+        /// <summary>Frame on which the capsule was last advanced, and how far in total. A stutter
+        /// in the walk can then be attributed to this rather than to the game's own move.</summary>
+        public static int MovedOnFrame { get; private set; }
+        public static float MovedTotal { get; private set; }
 
         public static void Forget()
         {
@@ -36,7 +42,15 @@ namespace AwayVR
 
         public static void Tick()
         {
-            if (!VrManager.VrActive || !Plugin.CfgRoomScaleMove.Value) { _hasLast = false; return; }
+            if (!VrManager.VrActive || !Plugin.CfgRoomScaleMove.Value)
+            {
+                // Switched off, the compensation accumulated so far would stay applied and leave
+                // the head standing beside the capsule. Off means the head back over the body.
+                if (_wasEnabled) { Offset = Vector3.zero; _wasEnabled = false; }
+                _hasLast = false;
+                return;
+            }
+            _wasEnabled = true;
 
             var rig = VrManager.Rig;
             if (rig == null || rig.parent == null) { _hasLast = false; return; }
@@ -72,6 +86,7 @@ namespace AwayVR
             LastStep = step.magnitude;
             if (LastStep < Plugin.CfgRoomScaleDeadzone.Value) return;
             Moves++;
+            MovedOnFrame = Time.frameCount;
 
             var world = rig.TransformVector(step);
             world.y = 0f;
@@ -79,6 +94,7 @@ namespace AwayVR
             var before = _cc.transform.position;
             _cc.Move(world);
             var covered = _cc.transform.position - before;
+            MovedTotal += new Vector2(covered.x, covered.z).magnitude;
 
             // Two policies when up against a wall:
             //
