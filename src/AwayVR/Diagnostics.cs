@@ -175,12 +175,10 @@ namespace AwayVR
         /// </summary>
         private static void DumpEtatJeu(StringBuilder sb)
         {
-            WalkProbe.Dump(sb);
-
             sb.AppendLine("-- Room-scale --");
             sb.AppendLine("  enabled=" + Plugin.CfgRoomScaleMove.Value
                           + "  deadzone=" + Plugin.CfgRoomScaleDeadzone.Value.ToString("0.0000")
-                          + "  lastStep=" + RoomScale.LastStep.ToString("0.0000")
+                          + "  headError=" + RoomScale.LastError.ToString("0.0000")
                           + "  moves=" + RoomScale.Moves
                           + "  blockAtWalls=" + Plugin.CfgBlockCameraOnWalls.Value);
 

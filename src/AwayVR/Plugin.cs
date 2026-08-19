@@ -63,6 +63,8 @@ namespace AwayVR
         internal static ConfigEntry<WeaponAttachMode> CfgWeaponAttach;
         internal static ConfigEntry<float> CfgWeaponScale;
         internal static ConfigEntry<WeaponAnchorPoint> CfgWeaponAnchor;
+        internal static ConfigEntry<bool> CfgOrientHitbox;
+        internal static ConfigEntry<float> CfgHitboxScale;
         internal static ConfigEntry<float> CfgWeaponOffX, CfgWeaponOffY, CfgWeaponOffZ;
 
         // --- swing to attack ---
@@ -294,9 +296,21 @@ namespace AwayVR
 
             CfgWeaponAttach = Config.Bind("034 - Weapons", "AttachTo", WeaponAttachMode.Right,
                 "Hand to attach the viewmodel to. Off = leaves the weapons on the camera.");
-            CfgWeaponScale = Config.Bind("034 - Weapons", "Scale", 0.40f,
-                new ConfigDescription("Viewmodel scale. A viewmodel is authored oversized: unnoticeable on a screen, "
-                    + "glaring in VR.", new AcceptableValueRange<float>(0.05f, 2f)));
+            CfgWeaponScale = Config.Bind("034 - Weapons", "Scale", 0.45f,
+                new ConfigDescription("Viewmodel scale. A viewmodel is authored oversized: "
+                    + "unnoticeable on a screen, glaring in VR.",
+                    new AcceptableValueRange<float>(0.05f, 2f)));
+            CfgOrientHitbox = Config.Bind("034 - Weapons", "OrientHitbox", true,
+                "Turns the damage volume with you. The game spawns it with an identity rotation "
+                + "and never sets one afterwards, so a non-spherical collider stays aligned to "
+                + "the WORLD axes and no longer matches where you face once you turn. Its "
+                + "position is left to the game.");
+            CfgHitboxScale = Config.Bind("034 - Weapons", "HitboxScale", 1.35f,
+                new ConfigDescription(
+                    "Enlarges the damage volume. Its size was chosen for a mouse pointing "
+                    + "the whole view; a hand swinging in the air is less precise and the "
+                    + "weapon is drawn where you swing it, not where the game aims.",
+                    new AcceptableValueRange<float>(1f, 3f)));
             CfgWeaponAnchor = Config.Bind("034 - Weapons", "AnchorPoint", WeaponAnchorPoint.Centre,
                 "Which point of the model sits in your hand. Base = the rear end, which suits weapons "
                 + "modelled as an outstretched arm holding an object. Centre = the midpoint of "
@@ -505,6 +519,7 @@ namespace AwayVR
             PatchSafely(typeof(Patches.FpcPatches));
             PatchSafely(typeof(Patches.InputPatches));
             PatchSafely(typeof(Patches.InputRedirect));
+            PatchSafely(typeof(Patches.HitZone));
             PatchSafely(typeof(Grenades));
             PatchSafely(typeof(Swing));
             try { Patches.InputRedirect.Apply(_harmony); }

@@ -291,6 +291,11 @@ namespace AwayVR.Patches
             if (!VrManager.VrActive || other == null) return;
             __instance.transform.rotation = Quaternion.Euler(0f, other.rotation.eulerAngles.y, 0f);
             _snapArmed = false;
+
+            // Teleports and respawns come through here. The room-scale compensation was gathered
+            // against the old position and would drag the head off the body at the new one.
+            RoomScale.Forget();
+            if (VrManager.Instance != null) VrManager.Instance.RequestCentre();
         }
     }
 }

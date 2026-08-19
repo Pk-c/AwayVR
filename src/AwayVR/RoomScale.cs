@@ -1,59 +1,70 @@
 using UnityEngine;
-using UnityEngine.XR;
 
 namespace AwayVR
 {
     /// <summary>
-    /// Room-scale movement: physically walking moves the character.
+    /// Keeps the collision capsule under the head, horizontally, every frame.
     ///
-    /// Driven by the CHANGE in head pose, never its absolute position - with the absolute
-    /// value, compensating the rig left the measured offset unchanged and the character
-    /// walked away forever.
+    /// Driven by the ABSOLUTE error between the two, not by the change in head pose. A loop on the
+    /// change can only hold the gap it started with: any initial offset, any drift, any teleport is
+    /// preserved forever, and the head ends up standing beside the body - hitting geometry it
+    /// cannot see. On the error, the gap is driven to zero and the loop repairs itself whatever
+    /// happens to either end.
     ///
-    /// Each step advances the CharacterController (so with collisions) and moves the rig back
-    /// by the distance actually covered, keeping the camera at a constant offset from the
-    /// capsule. The pose comes from InputTracking, independent of that compensation.
+    /// Each frame the capsule is advanced by that error through CharacterController.Move, so walls
+    /// still apply, and the rig is pulled back by the same amount. Moving the capsule alone would
+    /// achieve nothing: the rig is its child, so the head travels with it and the error does not
+    /// change. It is the rig that closes the gap; the Move is what makes the body actually travel.
+    ///
+    /// The vertical axis is never touched. Height belongs to the game's own gravity and to the
+    /// player's real height, and a capsule chasing the head vertically would crouch and jump on its
+    /// own.
     /// </summary>
     internal static class RoomScale
     {
+        /// <summary>Downward bias kept on every move, in metres, to preserve ground contact.</summary>
+        private const float StickToGround = 0.01f;
+
+        /// <summary>
+        /// A jump no walk can produce. Past it the player was teleported, respawned or moved by a
+        /// cutscene, and the compensation gathered against the old position is meaningless.
+        /// </summary>
+        private const float TeleportJump = 2f;
+
         private static CharacterController _cc;
-        private static Vector3 _lastHead;
-        private static bool _hasLast;
+        private static Vector3 _lastBody;
+        private static bool _hasBody;
         private static bool _wasEnabled;
 
-        /// <summary>Accumulated compensation, expressed in the rig parent's space.</summary>
+        /// <summary>Compensation applied to the rig, in its parent's space.</summary>
         public static Vector3 Offset { get; private set; }
 
-        /// <summary>Last measured head step, and how many crossed the deadzone. Diagnostic.</summary>
-        public static float LastStep { get; private set; }
+        /// <summary>Head-to-capsule distance left after the last correction. Diagnostic.</summary>
+        public static float LastError { get; private set; }
         public static int Moves { get; private set; }
-
-        /// <summary>Frame on which the capsule was last advanced, and how far in total. A stutter
-        /// in the walk can then be attributed to this rather than to the game's own move.</summary>
-        public static int MovedOnFrame { get; private set; }
-        public static float MovedTotal { get; private set; }
 
         public static void Forget()
         {
             Offset = Vector3.zero;
             _cc = null;
-            _hasLast = false;
+            _hasBody = false;
         }
 
         public static void Tick()
         {
             if (!VrManager.VrActive || !Plugin.CfgRoomScaleMove.Value)
             {
-                // Switched off, the compensation accumulated so far would stay applied and leave
-                // the head standing beside the capsule. Off means the head back over the body.
+                // Switched off, the compensation gathered so far would stay applied and leave the
+                // head standing beside the capsule. Off means the head back over the body.
                 if (_wasEnabled) { Offset = Vector3.zero; _wasEnabled = false; }
-                _hasLast = false;
+                _hasBody = false;
                 return;
             }
             _wasEnabled = true;
 
             var rig = VrManager.Rig;
-            if (rig == null || rig.parent == null) { _hasLast = false; return; }
+            var cam = VrManager.MainCamera;
+            if (rig == null || rig.parent == null || cam == null) { _hasBody = false; return; }
 
             var parent = rig.parent;
             if (_cc == null)
@@ -62,51 +73,48 @@ namespace AwayVR
                 if (_cc == null) return;   // scene without a character: nothing to move
             }
 
-            var head = InputTracking.GetLocalPosition(XRNode.Head);
-            var flat = new Vector3(head.x, 0f, head.z);
+            var body = _cc.transform.position;
 
-            if (!_hasLast)
+            // A respawn, a teleport or a cutscene move: everything gathered against the old
+            // position is void, and correcting towards it would drag the player back.
+            if (_hasBody && (body - _lastBody).magnitude > TeleportJump)
             {
-                _lastHead = flat;
-                _hasLast = true;
+                Offset = Vector3.zero;
+                _lastBody = body;
+                if (VrManager.Instance != null) VrManager.Instance.RequestCentre();
                 return;
             }
+            _lastBody = body;
+            _hasBody = true;
 
-            var step = flat - _lastHead;
-            _lastHead = flat;
+            var error = cam.transform.position - body;
+            error.y = 0f;
+            LastError = error.magnitude;
 
-            // Applied every frame with no accumulation: waiting for a total and catching up
-            // all at once produced 2 cm jumps that shook the view.
-            //
-            // The deadzone matters more than it looks. Every step past it calls the game's own
-            // CharacterController.Move, in the same frame as the game's own movement - so a
-            // value below real tracking noise means calling it constantly for jitter, which
-            // recomputes grounding and can eat part of the walk. Half a millimetre was such a
-            // value; it is a setting again because the right figure depends on the headset.
-            LastStep = step.magnitude;
-            if (LastStep < Plugin.CfgRoomScaleDeadzone.Value) return;
+            // Below the headset's own noise there is nothing to correct, and calling the game's
+            // CharacterController every frame for jitter competes with its own movement.
+            if (LastError < Plugin.CfgRoomScaleDeadzone.Value) return;
             Moves++;
-            MovedOnFrame = Time.frameCount;
 
-            var world = rig.TransformVector(step);
-            world.y = 0f;
-
-            var before = _cc.transform.position;
-            _cc.Move(world);
+            // A purely HORIZONTAL move lifts the capsule off its contact: the controller resolves
+            // the sweep with no downward component, isGrounded drops for that frame and the game's
+            // own move then takes its airborne branch on the next one. The game keeps its contact
+            // with m_StickToGroundForce on every move; we borrow the idea. Small enough not to
+            // fight stepOffset on stairs.
+            var before = body;
+            _cc.Move(new Vector3(error.x, -StickToGround, error.z));
             var covered = _cc.transform.position - before;
-            MovedTotal += new Vector2(covered.x, covered.z).magnitude;
 
-            // Two policies when up against a wall:
+            // Two policies against a wall:
             //
-            //  - absorb the REQUESTED step: the view is blocked along with the body, so the
-            //    camera never passes through anything and the capsule stays exactly under
-            //    the head. The price is a break in 1:1 tracking while you lean into the
-            //    wall, which is the usual trade-off;
-            //  - absorb the COVERED step: tracking stays perfect but the head goes through
-            //    walls and the body falls behind.
-            var toAbsorb = Plugin.CfgBlockCameraOnWalls.Value ? world : covered;
+            //  - absorb the REQUESTED error: the head stays centred whatever happens, and leaning
+            //    into geometry pushes the view instead of letting it through;
+            //  - absorb the COVERED distance: tracking stays perfectly 1:1 and the head passes
+            //    through walls while the body falls behind.
+            var absorb = Plugin.CfgBlockCameraOnWalls.Value ? error : covered;
+            absorb.y = 0f;   // the downward bias is ours, never given back to the rig
 
-            var local = parent.InverseTransformVector(toAbsorb);
+            var local = parent.InverseTransformVector(absorb);
             Offset -= new Vector3(local.x, 0f, local.z);
         }
     }

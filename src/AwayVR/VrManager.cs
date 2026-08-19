@@ -611,24 +611,6 @@ namespace AwayVR
             Log("Head centred on the body: offset=" + _centreFlat.ToString("0.000"));
         }
 
-        /// <summary>
-        /// Camera to capsule, horizontally, in metres. Zero is centred.
-        ///
-        /// Every term that separates the two has to be in here. Leaving out the room-scale
-        /// compensation - the one that cancels physical walking - measured how far the player had
-        /// walked across the room instead, and reported a metre and a half of offset that was
-        /// not there.
-        /// </summary>
-        internal static float HeadOffset
-        {
-            get
-            {
-                if (!VrActive || MainCamera == null || Rig == null) return 0f;
-                var p = Rig.localPosition + MainCamera.transform.localPosition - _rigBasePos;
-                return new Vector2(p.x, p.z).magnitude;
-            }
-        }
-
         private void ApplyLive()
         {
             if (!VrActive || Rig == null) return;
@@ -767,7 +749,6 @@ namespace AwayVR
 
             Swing.Tick();
             RoomScale.Tick();
-            WalkProbe.Tick();
 
             // Panels placed AFTER the head pose has been updated. In Update we computed
             // their position from a pose one frame stale, and the panel shook on every head

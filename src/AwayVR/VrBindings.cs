@@ -115,7 +115,9 @@ namespace AwayVR
         internal static readonly string[] Labels =
         {
             "Attack (right trigger)", "Guard (right grip)", "Jump / confirm (A)",
-            "Run (left stick click)",
+            // Inert while AlwaysRun is on, which is the default: the stick deflection sets
+            // the pace on its own. Kept so turning AlwaysRun off still leaves a way to run.
+            "Run (only if AlwaysRun off)",
             "Next character (right stick down / B)", "Grenade (left grip)", "Diary (X)",
             "Pause menu (Y)", "Next tab (right trigger)",
             "Cancel (Y)",

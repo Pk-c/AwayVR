@@ -24,9 +24,18 @@ namespace AwayVR
         private static Vector3 _origScale;
         private static bool _captured;
 
+        /// <summary>
+        /// The holder's scale as it was the FIRST time we ever saw one, kept for the whole
+        /// session. _origScale cannot serve: Forget() runs on every scene load and re-captures it
+        /// from the new scene's holder - which is the very value that differs.
+        /// </summary>
+        private static Vector3 _referenceScale = Vector3.one;
+        private static bool _hasReference;
+
         /// <summary>Model point to place in the hand, in the anchor's local space.</summary>
         private static Vector3 _gripLocal;
         private static string _signature;
+
         private static float _nextCheck;
 
         public static Transform Root { get { return _root; } }
@@ -110,6 +119,14 @@ namespace AwayVR
                 _origRot = _root.localRotation;
                 _origScale = _root.localScale;
                 _captured = true;
+
+                if (!_hasReference)
+                {
+                    _referenceScale = _root.localScale;
+                    _hasReference = true;
+                    Plugin.Log.LogInfo("Weapon holder reference scale: "
+                                       + _referenceScale.ToString("0.000"));
+                }
             }
             return _root;
         }
@@ -187,10 +204,28 @@ namespace AwayVR
             if (_root != null && _root.parent == _anchor) Fixer(_root);
         }
 
+        /// <summary>
+        /// Undoes what the Animator writes onto the weapon holder every frame.
+        ///
+        /// SCALE belongs here as much as position and rotation, and leaving it out was a bug: it
+        /// multiplies straight into the final size, so the same weapon came back smaller after a
+        /// scene change - a boomstick carried into a dungeon shrank, and a weapon too small stops
+        /// reaching anything. The reference is the scale the holder had the FIRST time we ever saw
+        /// it, not the current scene's, or each scene would pin its own value and the size would
+        /// still move.
+        /// </summary>
         private static void Fixer(Transform root)
         {
             if (root.localPosition != Vector3.zero) root.localPosition = Vector3.zero;
             if (root.localRotation != Quaternion.identity) root.localRotation = Quaternion.identity;
+
+            if (_hasReference && root.localScale != _referenceScale)
+            {
+                if (Plugin.CfgVerbose.Value)
+                    Plugin.Log.LogInfo("Weapon holder scale drifted: " + root.localScale.ToString("0.000")
+                                       + " -> " + _referenceScale.ToString("0.000"));
+                root.localScale = _referenceScale;
+            }
         }
 
         /// <summary>
