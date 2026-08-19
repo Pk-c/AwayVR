@@ -65,6 +65,9 @@ namespace AwayVR
         internal static ConfigEntry<WeaponAnchorPoint> CfgWeaponAnchor;
         internal static ConfigEntry<bool> CfgOrientHitbox;
         internal static ConfigEntry<float> CfgHitboxScale;
+        internal static ConfigEntry<HitboxPlacement> CfgHitboxPlacement;
+        internal static ConfigEntry<float> CfgHitboxPitch;
+        internal static ConfigEntry<KnockbackDirection> CfgKnockback;
         internal static ConfigEntry<float> CfgWeaponOffX, CfgWeaponOffY, CfgWeaponOffZ;
 
         // --- swing to attack ---
@@ -300,6 +303,27 @@ namespace AwayVR
                 new ConfigDescription("Viewmodel scale. A viewmodel is authored oversized: "
                     + "unnoticeable on a screen, glaring in VR.",
                     new AcceptableValueRange<float>(0.05f, 2f)));
+            CfgKnockback = Config.Bind("034 - Weapons", "KnockbackDirection", KnockbackDirection.Away,
+                "Which way a struck enemy is thrown. The game pushes it along the BODY's forward, "
+                + "which on a screen says three things at once - where the body points, where you "
+                + "look, and which way is away from you - because you face what you hit. In VR the "
+                + "body only turns on a snap, so it stops meaning any of them: enemies leave at an "
+                + "angle unrelated to the blow, sometimes towards you. Away = driven off along the "
+                + "line between you, which is the mechanic the game intends. Gaze = along your "
+                + "gaze. Game = untouched. Also drives the debris of a struck animal.");
+            CfgHitboxPlacement = Config.Bind("034 - Weapons", "HitboxPlacement", HitboxPlacement.Ahead,
+                "Where the damage volume goes. Ahead = the mod puts it in front of the character, "
+                + "at the eye height the game authored: the same geometry, but no longer riding "
+                + "on your posture. Game = the original, pinned two metres ahead of the HEADSET, "
+                + "which follows you down when you crouch or lean and is re-based at every scene "
+                + "load. Ahead supersedes OrientHitbox, which then does nothing.");
+            CfgHitboxPitch = Config.Bind("034 - Weapons", "HitboxPitchLimit", 25f,
+                new ConfigDescription(
+                    "How far the damage volume follows your gaze up and down, in degrees, with "
+                    + "HitboxPlacement=Ahead. Two metres out, every degree costs 3.5 cm of height: "
+                    + "unbounded, a glance at your feet buries the volume in the floor. Zero keeps "
+                    + "it perfectly level.",
+                    new AcceptableValueRange<float>(0f, 60f)));
             CfgOrientHitbox = Config.Bind("034 - Weapons", "OrientHitbox", true,
                 "Turns the damage volume with you. The game spawns it with an identity rotation "
                 + "and never sets one afterwards, so a non-spherical collider stays aligned to "
@@ -520,6 +544,7 @@ namespace AwayVR
             PatchSafely(typeof(Patches.InputPatches));
             PatchSafely(typeof(Patches.InputRedirect));
             PatchSafely(typeof(Patches.HitZone));
+            PatchSafely(typeof(Patches.KnockbackPatches));
             PatchSafely(typeof(Grenades));
             PatchSafely(typeof(Swing));
             try { Patches.InputRedirect.Apply(_harmony); }

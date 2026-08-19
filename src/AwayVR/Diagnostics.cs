@@ -167,6 +167,56 @@ namespace AwayVR
         }
 
         /// <summary>
+        /// Where melee damage actually lands.
+        ///
+        /// Every hit box is pinned to the game's damage anchor, so its parent decides whether
+        /// blows follow the head or the body - and the head/body gap only opens when you turn
+        /// on the spot physically, which a snap turn never does. Both are printed: a report
+        /// showing the anchor off the camera, or a wide gap, names the fault on its own.
+        /// </summary>
+        private static void DumpAncrageDegats(StringBuilder sb)
+        {
+            sb.AppendLine("-- Damage anchor --");
+
+            var t = HitAnchor.Current;
+            if (t == null) { sb.AppendLine("  (absent from the scene)"); return; }
+
+            sb.AppendLine("  " + Hierarchy.Path(t)
+                          + (HitAnchor.OnHead ? "   ON THE HEAD (correct)" : "   OFF THE CAMERA (hits follow the body)"));
+            sb.AppendLine("  local=" + t.localPosition.ToString("0.000")
+                          + "  hitboxScale=" + Plugin.CfgHitboxScale.Value.ToString("0.00")
+                          + "  oriented=" + Plugin.CfgOrientHitbox.Value);
+
+            var cam = VrManager.MainCamera;
+            var body = VrManager.PlayerRoot;
+            if (cam == null || body == null) return;
+
+            float ecart = Mathf.DeltaAngle(Cap(body.forward), Cap(cam.transform.forward));
+            sb.AppendLine("  head vs body yaw = " + ecart.ToString("0") + " deg"
+                          + "   anchor " + Vector3.Distance(t.position, cam.transform.position).ToString("0.00")
+                          + " m ahead of the eyes, " + (t.position.y - body.position.y).ToString("0.00") + " m above the body");
+
+            // Where the hit box will ACTUALLY be, which is the anchor only in Game placement.
+            sb.AppendLine("  placement=" + Plugin.CfgHitboxPlacement.Value
+                          + "  pitchLimit=" + Plugin.CfgHitboxPitch.Value.ToString("0") + " deg");
+
+            Vector3 pos;
+            Quaternion rot;
+            if (Plugin.CfgHitboxPlacement.Value == HitboxPlacement.Ahead && HitAnchor.Ahead(out pos, out rot))
+                sb.AppendLine("  hit box  -> " + (pos.y - body.position.y).ToString("0.00")
+                              + " m above the body, " + Vector3.Distance(pos, body.position).ToString("0.00")
+                              + " m out   (authored eye height " + VrManager.AuthoredEyeHeight.ToString("0.00") + " m)");
+        }
+
+        /// <summary>Heading of a direction in degrees, flattened. Undefined straight up: zero.</summary>
+        private static float Cap(Vector3 dir)
+        {
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 1e-6f) return 0f;
+            return Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        }
+
+        /// <summary>
         /// State of the game locks that can swallow a command.
         ///
         /// ShowPanels.Update only opens the pause menu if NONE of these flags blocks it, and
@@ -181,6 +231,8 @@ namespace AwayVR
                           + "  headError=" + RoomScale.LastError.ToString("0.0000")
                           + "  moves=" + RoomScale.Moves
                           + "  blockAtWalls=" + Plugin.CfgBlockCameraOnWalls.Value);
+
+            DumpAncrageDegats(sb);
 
             sb.AppendLine("-- Game locks --");
 

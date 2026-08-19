@@ -34,11 +34,30 @@ namespace AwayVR.Patches
             __instance.transform.localScale *= k;
         }
 
+        /// <summary>
+        /// Runs after the game's own Update, which writes the position: ours is the last word.
+        /// </summary>
         [HarmonyPatch("Update")]
         [HarmonyPostfix]
         private static void Update_Postfix(sword_hit_zone __instance)
         {
-            if (!VrManager.VrActive || !Plugin.CfgOrientHitbox.Value) return;
+            if (!VrManager.VrActive) return;
+
+            if (Plugin.CfgHitboxPlacement.Value == HitboxPlacement.Ahead)
+            {
+                Vector3 pos;
+                Quaternion rot;
+                if (HitAnchor.Ahead(out pos, out rot))
+                {
+                    __instance.transform.position = pos;
+                    __instance.transform.rotation = rot;
+                    return;
+                }
+                // No character to measure from - a mini-game, a cutscene: the game's own
+                // placement is still better than an invented one.
+            }
+
+            if (!Plugin.CfgOrientHitbox.Value) return;
 
             var reference = repere_feedback_position.Position_actuelle_du_repere_feedback;
             if (reference == null) return;

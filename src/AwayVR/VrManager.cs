@@ -33,6 +33,13 @@ namespace AwayVR
 
         /// <summary>Rig local position without height offset, captured on setup.</summary>
         private static Vector3 _rigBasePos;
+
+        /// <summary>
+        /// Eye height the GAME intends, above the character's origin. Nothing in VR sits at
+        /// that height any more - the headset decides - but it is the reference the game's own
+        /// combat geometry was built around.
+        /// </summary>
+        public static float AuthoredEyeHeight { get { return _rigBasePos.y; } }
         /// <summary>Culling mask before any hiding, so it can be recomputed every frame.</summary>
         private static int _baseMask;
         private static Camera _maskCam;
@@ -223,6 +230,8 @@ namespace AwayVR
             RootBisect.Reset();
             GameState.OnSceneLoaded();
             Swing.OnSceneLoaded();
+            HitAnchor.Forget();
+            PlayerFacing.Forget();
             Trails.Forget();
             // Shield is NOT cleared here: weapons_sword raises OnEnable while the scene is
             // still loading, so clearing afterwards wiped the binding it had just made.
@@ -258,12 +267,19 @@ namespace AwayVR
             MainCamera = cam;
             BuildRig(cam.transform);
             Hands.Ensure(Rig);
-            AdoptCameraChildren(cam.transform);
 
-            PanelOverlay.Ensure(cam);
-
+            // ANSWERED BEFORE the adoption, which reads it. Assigned afterwards, the sweep's
+            // value from the PREVIOUS scene decided: arriving from a loading screen it still
+            // said "not in game", and a gameplay scene had the camera's children moved onto
+            // the rig - the damage anchor among them, which then followed the body instead of
+            // the head.
             InGame = Object.FindObjectOfType<
                 UnityStandardAssets.Characters.FirstPerson.FirstPersonController>() != null;
+
+            AdoptCameraChildren(cam.transform);
+            HitAnchor.Tick();
+
+            PanelOverlay.Ensure(cam);
 
             // A near plane at five centimetres. Closer and the depth buffer loses precision
             // across the whole scene; further and your own hands are clipped away.
@@ -362,6 +378,11 @@ namespace AwayVR
 
                 // The viewmodel has its own handling, and our objects are already on the rig.
                 if (n == "Weapons_Camera" || n.StartsWith("AwayVR_")) continue;
+
+                // The damage anchor must never leave the head: every melee hit box is pinned
+                // to it, and on the rig it points where the BODY faces. Turn on the spot
+                // physically - the body does not follow - and the blows land beside the enemy.
+                if (child.GetComponentInChildren<repere_feedback_position>(true) != null) continue;
 
                 // We keep the local values: the object ends up straight ahead of the rig,
                 // rather than frozen wherever the head happened to be at adoption time.
@@ -839,6 +860,10 @@ namespace AwayVR
                 // weapon_selector enables and disables weapons as the game goes on: each
                 // new weapon arrives with its own repositioning scripts.
                 Weapons.Apply(Plugin.CfgWeaponAttach.Value, false);
+
+                // Melee reach: worthless once the anchor has left the head.
+                HitAnchor.Tick();
+                PlayerFacing.Tick();
 
                 // The player body is re-enabled as characters are switched.
                 PlayerBody.Apply(MainCamera, false);

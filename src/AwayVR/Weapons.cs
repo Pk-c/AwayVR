@@ -253,16 +253,38 @@ namespace AwayVR
             var position = new Vector3(
                 Plugin.CfgWeaponOffX.Value, Plugin.CfgWeaponOffY.Value, Plugin.CfgWeaponOffZ.Value);
 
-            // The offset is expressed in RIG space, not hand space: in hand space it rotates
-            // with the wrist and becomes a lever arm, so moving the weapon moves its centre of
-            // rotation too. Cancelling the hand's rotation on the offset alone leaves the held
-            // point on the controller and the offset merely translates it.
+            // The offset is expressed in the hand's YAW frame, not in hand space and not in rig
+            // space. Hand space rotates it with the wrist and turns it into a lever arm, so
+            // moving the weapon moves its centre of rotation too. Rig space fixes it to the
+            // play area instead of to you: turn on the spot physically and the offset stays
+            // pointing where the room points, so the weapon drifts to the wrong side of your
+            // own hand - the one case where the body does not turn with you. Yaw only keeps
+            // the wrist out of it while following you around.
             var hand = _anchor.parent;
             var decalageMain = hand != null
-                ? Quaternion.Inverse(hand.localRotation) * position
+                ? Quaternion.Inverse(hand.localRotation) * (FlatYaw(hand.localRotation) * position)
                 : position;
 
             _anchor.localPosition = decalageMain - _gripLocal * scale;
+        }
+
+        /// <summary>
+        /// Horizontal heading of a rotation, stable at any pitch. Never through eulerAngles.y:
+        /// the extraction swings once the transform carries pitch and roll, and a hand held out
+        /// in front of you carries both. Pointing straight up or down leaves no forward to
+        /// flatten, so the up vector stands in - which is where the back of the hand faces then.
+        /// </summary>
+        private static Quaternion FlatYaw(Quaternion q)
+        {
+            var fwd = q * Vector3.forward;
+            fwd.y = 0f;
+            if (fwd.sqrMagnitude < 1e-6f)
+            {
+                fwd = q * Vector3.up;
+                fwd.y = 0f;
+                if (fwd.sqrMagnitude < 1e-6f) return Quaternion.identity;
+            }
+            return Quaternion.LookRotation(fwd.normalized, Vector3.up);
         }
 
         /// <summary>
