@@ -2,12 +2,14 @@
 
 A VR mod for **AWAY: Journey to the Unexpected**
 
+https://store.steampowered.com/app/573110/AWAY_Journey_to_the_Unexpected/
+
 <img width="1672" height="941" alt="d4d85224-1acc-4861-833c-94d8671a53b7" src="https://github.com/user-attachments/assets/ac74c3ab-ff57-4a3e-b515-3e7eb8f08435" />
 
 I tried to make this mod feel like native : 6Dof, snap/smooth turn mode, tracked hands, swing-to-attack, grenades thrown with your hands, and the game's flat interface
 rebuilt as panels you can actually look at.
 
-Not affiliated with the publisher. No game assets or game code are redistributed.
+Unofficial mod, not affiliated with the developer or publisher. No game assets or game code are redistributed.
 
 If you like my work you can follow me on Patreon ( free membership ), I try to make like native mode for beautiful games!
 
@@ -25,6 +27,8 @@ OR
 ---
 
 ## Installation
+
+Get a copy of the game on steam : https://store.steampowered.com/app/573110/AWAY_Journey_to_the_Unexpected/
 
 Download the latest release <a href="https://github.com/Pk-c/AwayVR/releases/tag/V1.0">Here</a>
 
