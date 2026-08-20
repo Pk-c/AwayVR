@@ -1,6 +1,6 @@
 # AwayVR
 
-A VR mod for **AWAY: Journey to the Unexpected**
+A VR mod for **AWAY: Journey to the Unexpected** (Aurelien Regard Games)
 
 https://store.steampowered.com/app/573110/AWAY_Journey_to_the_Unexpected/
 
