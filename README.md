@@ -23,6 +23,9 @@ OR
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/A0Y524C5N8)
 
+---
+
+Check the presentation video : https://www.youtube.com/watch?v=xMN7K3F4t5k
 
 ---
 
