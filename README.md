@@ -53,7 +53,6 @@ configuration file, removes every file the mod added, and deletes itself.
 | B | Next character, advance dialogue  |
 | X | Open/close the diary |
 | Y | Pause menu, cancel |
-| Left stick click | Run |
 | Right stick down / up | Next / previous character |
 | Both stick clicks | The mod's VR settings |
 
