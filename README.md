@@ -1,7 +1,5 @@
 # AwayVR
 
-WIP : Release coming soon.
-
 A VR mod for **AWAY: Journey to the Unexpected**
 
 <img width="1672" height="941" alt="d4d85224-1acc-4861-833c-94d8671a53b7" src="https://github.com/user-attachments/assets/ac74c3ab-ff57-4a3e-b515-3e7eb8f08435" />
@@ -27,6 +25,8 @@ OR
 ---
 
 ## Installation
+
+Download the latest release <a href="https://github.com/Pk-c/AwayVR/releases/tag/V1.0">Here</a>
 
 Unzip the release archive into the game folder, next to `Away.exe`, then launch the game.
 That is all
