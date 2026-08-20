@@ -26,9 +26,6 @@ namespace AwayVR
         /// <summary>Current opacity, 1 = fully covered.</summary>
         private static float _alpha;
 
-        /// <summary>True while the view is covered, wholly or partly.</summary>
-        public static bool Covering { get { return _alpha > 0.002f; } }
-
         /// <summary>Held fully opaque until this moment, then it fades out.</summary>
         private static float _holdUntil = -999f;
 

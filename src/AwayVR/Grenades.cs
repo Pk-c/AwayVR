@@ -229,9 +229,6 @@ namespace AwayVR
         private static bool _throwPending;
         private static float _pendingSince;
 
-        /// <summary>True while the trigger is squeezed and the grenade is ready to leave.</summary>
-        public static bool Armed { get { return _armed; } }
-
         /// <summary>
         /// Reads the gesture: squeeze the trigger all the way to arm, let it go all the way to
         /// throw. Two widely separated thresholds, so no amount of trembling on the trigger

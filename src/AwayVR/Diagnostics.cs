@@ -208,6 +208,27 @@ namespace AwayVR
                               + " m out   (authored eye height " + VrManager.AuthoredEyeHeight.ToString("0.00") + " m)");
         }
 
+        /// <summary>
+        /// Lock-on state. The robot fires nothing without a target, and the test that keeps one
+        /// alive compares a HUD marker against the SCREEN - two pixel spaces that no longer
+        /// agree in VR. The eye and window sizes are printed side by side for that reason.
+        /// </summary>
+        private static void DumpVerrouillage(StringBuilder sb)
+        {
+            var sys = Object.FindObjectOfType<TargetLockSystem>();
+            if (sys == null) return;
+
+            sb.AppendLine("-- Target lock --");
+            sb.AppendLine("  targets=" + Patches.TargetLockPatches.Count(sys)
+                          + "  fix=" + Plugin.CfgTargetLockFix.Value
+                          + (Patches.TargetLockPatches.Resolved ? "" : "  (FIELDS NOT RESOLVED)"));
+
+            var cam = VrManager.MainCamera;
+            if (cam != null)
+                sb.AppendLine("  eye texture " + cam.pixelWidth + "x" + cam.pixelHeight
+                              + "   window " + Screen.width + "x" + Screen.height);
+        }
+
         /// <summary>Heading of a direction in degrees, flattened. Undefined straight up: zero.</summary>
         private static float Cap(Vector3 dir)
         {
@@ -233,6 +254,8 @@ namespace AwayVR
                           + "  blockAtWalls=" + Plugin.CfgBlockCameraOnWalls.Value);
 
             DumpAncrageDegats(sb);
+            DumpVerrouillage(sb);
+            CombatProbe.Dump(sb);
 
             sb.AppendLine("-- Game locks --");
 

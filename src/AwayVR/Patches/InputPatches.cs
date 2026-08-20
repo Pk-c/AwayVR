@@ -1,4 +1,5 @@
 using HarmonyLib;
+using UnityEngine;
 
 namespace AwayVR.Patches
 {
@@ -43,6 +44,18 @@ namespace AwayVR.Patches
         }
 
         /// <summary>
+        /// When the attack action last came back true, in seconds, or -1 if never. The action is
+        /// an EDGE - one frame - so nothing sampling periodically would ever catch it, and
+        /// "the trigger does nothing" cannot otherwise be told from "the weapon refused".
+        /// </summary>
+        public static float SinceAttack
+        {
+            get { return _lastAttack < 0f ? -1f : Time.unscaledTime - _lastAttack; }
+        }
+
+        private static float _lastAttack = -1f;
+
+        /// <summary>
         /// Swing-to-attack, added on top of the button-triggered attacks. The right trigger
         /// keeps working alongside it.
         /// </summary>
@@ -50,13 +63,18 @@ namespace AwayVR.Patches
         [HarmonyPostfix]
         private static void GetAction_Postfix(InputAction id, ref bool __result)
         {
-            if (__result) return;
+            if (__result)
+            {
+                if (id == InputAction.Attack || id == InputAction.AttackCanCharge)
+                    _lastAttack = Time.unscaledTime;
+                return;
+            }
             if (!VrManager.VrActive || !Plugin.CfgSwingToAttack.Value) return;
 
             // ChannelAttack is a held charge: a brief swing makes no sense for it.
             if (id != InputAction.Attack && id != InputAction.AttackCanCharge) return;
 
-            if (Swing.IsSwinging) __result = true;
+            if (Swing.IsSwinging) { __result = true; _lastAttack = Time.unscaledTime; }
         }
     }
 }

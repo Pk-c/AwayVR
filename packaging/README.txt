@@ -71,9 +71,18 @@ as you actually threw it.
 
 SETTINGS
 --------
-The VR settings open in game by clicking both sticks: turning, world scale,
-player height, weapon placement, HUD size and distance, shadow distance, render
-scale, and a frame-rate counter.
+The VR settings open in game by clicking both sticks. Everything applies live, so
+you can judge a setting from inside the headset without closing the menu.
+
+  Controls   walking speed and dead zone, snap or smooth turn, turn angle/speed
+  Weapon     weapon size, swing threshold, trail, damage volume, knockback,
+             grenade throwing power
+  Graphics   world scale, colour grading
+  Effects    render scale, and one switch per full-screen effect, plus shadows
+             and level of detail
+  Interface  HUD always visible, HUD size and distance
+  Player     head centring, room-scale walking, camera blocked by walls, height
+  System     frame-rate counter, reset everything
 
   Character effects
         The per-character full-screen washes - the mechanic's red, the magician's
@@ -84,9 +93,32 @@ scale, and a frame-rate counter.
         this is the only anti-aliasing available. 1.3 by default; lower it if the
         frame rate suffers.
 
+  Hit box
+        Where the damage volume of a melee blow goes. The game pins it two metres
+        ahead of the HEADSET, so it rides on your posture: crouch, or lean, and it
+        sinks with you. "Ahead" measures it from the character instead, at the
+        height the game intends. "Hit box pitch" is how far it still follows your
+        gaze up and down.
+
+  Knockback
+        Which way a struck enemy is thrown. The game pushes it along the BODY's
+        forward, which on a screen is also "away from you" - you face what you
+        hit. Turn on the spot physically in VR and the two part company. "Away"
+        restores the intent.
+
 Everything is stored in BepInEx\config\fr.awayvr.plugin.cfg, which also holds
 finer options that are not exposed in the menu - grenade offsets, swing
 threshold, fade timings, and the input bindings.
+
+
+COMBAT
+------
+Melee is swing-to-attack: the game's own damage volume is used, placed ahead of
+the character, so a blow lands where you face rather than where the model passes.
+
+The robot fires only at LOCKED targets: look at an enemy to lock it - a marker
+appears on it - then pull the trigger to send the salvo. Several enemies can be
+locked by sweeping your gaze across them.
 
 
 TROUBLESHOOTING

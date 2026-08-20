@@ -490,70 +490,6 @@ namespace AwayVR
             if (n == 0) sb.AppendLine("  (none)");
         }
 
-        /// <summary>Signature of the active renderers: changes when the weapon changes.</summary>
-        private static string Signature()
-        {
-            if (_root == null) return "";
-            int n = 0;
-            string premier = "";
-            foreach (var r in _root.GetComponentsInChildren<Renderer>(false))
-            {
-                if (r == null || !r.enabled) continue;
-                if (r is ParticleSystemRenderer) continue;
-                if (n == 0) premier = r.name;
-                n++;
-            }
-            return n + ":" + premier;
-        }
-
-        /// <summary>
-        /// Model bounds expressed in the anchor's local space. We transform the 8 corners
-        /// of each renderer's world bounds into it: converting the centre alone would not
-        /// give us the ends, which we need in order to find the base of the model.
-        /// </summary>
-        private static bool TryLocalBounds(out Bounds local)
-        {
-            local = new Bounds();
-            if (_root == null || _anchor == null) return false;
-
-            bool any = false;
-            foreach (var r in _root.GetComponentsInChildren<Renderer>(false))
-            {
-                if (r == null || !r.enabled) continue;
-                if (r is ParticleSystemRenderer) continue;
-
-                var b = r.bounds;
-                var c = b.center;
-                var e = b.extents;
-
-                for (int i = 0; i < 8; i++)
-                {
-                    var coin = new Vector3(
-                        c.x + ((i & 1) == 0 ? -e.x : e.x),
-                        c.y + ((i & 2) == 0 ? -e.y : e.y),
-                        c.z + ((i & 4) == 0 ? -e.z : e.z));
-                    var p = _anchor.InverseTransformPoint(coin);
-                    if (!any) { local = new Bounds(p, Vector3.zero); any = true; }
-                    else local.Encapsulate(p);
-                }
-            }
-            return any;
-        }
-
-        private static bool TryBounds(Transform t, out Bounds b)
-        {
-            b = new Bounds();
-            bool any = false;
-            foreach (var r in t.GetComponentsInChildren<Renderer>(false))
-            {
-                if (r == null || !r.enabled) continue;
-                if (r is ParticleSystemRenderer) continue;
-                if (!any) { b = r.bounds; any = true; }
-                else b.Encapsulate(r.bounds);
-            }
-            return any;
-        }
-
         /// <summary>
         /// weapon_position and weapon_reinit_position reapply a WORLD position captured at
         /// start-up, and weapons_sway swings the weapon with the mouse. All three undo the
@@ -585,12 +521,7 @@ namespace AwayVR
             if (log) Plugin.Log.LogInfo("Viewmodel handed back to the camera.");
         }
 
-        /// <summary>Call on a scene change: the transforms have been destroyed.</summary>
-
         /// <summary>Called on a scene load: everything below has to be rediscovered.</summary>
-        /// <summary>True once the game's weapon holder has been found.</summary>
-        public static bool HasRoot { get { return _root != null; } }
-
         public static void OnSceneLoaded()
         {
             _holderChecked = false;

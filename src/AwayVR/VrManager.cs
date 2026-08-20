@@ -59,7 +59,6 @@ namespace AwayVR
         private static Transform _screenAnchor;
 
         private static void Log(string m) => Plugin.Log.LogInfo(m);
-        private static void Warn(string m) => Plugin.Log.LogWarning(m);
         private static void Err(string m) => Plugin.Log.LogError(m);
 
         private IEnumerator Start()
@@ -232,6 +231,7 @@ namespace AwayVR
             Swing.OnSceneLoaded();
             HitAnchor.Forget();
             PlayerFacing.Forget();
+            TargetMarkers.Forget();
             Trails.Forget();
             // Shield is NOT cleared here: weapons_sword raises OnEnable while the scene is
             // still loading, so clearing afterwards wiped the binding it had just made.
@@ -742,13 +742,6 @@ namespace AwayVR
             wCam.enabled = true;
         }
 
-        private static bool IsDescendantOf(Transform t, Transform ancestor)
-        {
-            for (var p = t.parent; p != null; p = p.parent)
-                if (p == ancestor) return true;
-            return false;
-        }
-
         // ------------------------------------------------------------------
         // Shortcuts
         // ------------------------------------------------------------------
@@ -786,6 +779,7 @@ namespace AwayVR
             GazeFollow.Update(PanelOverlay.Anchor, Plugin.CfgHudFollowSpeed.Value);
             FollowVirtualScreens();
 
+            CombatProbe.Tick();
             ImguiCapture.Tick();
             HudCapture.Tick();
             VrFade.Tick();

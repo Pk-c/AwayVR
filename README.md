@@ -65,8 +65,26 @@ The grenade leaves your hand, in the direction of the throw, and as hard as you 
 
 ## Settings Menu
 
-The in-game menu opens by clicking both sticks: turning mode, world scale, player height,
-weapon placement, HUD size and distance, render scale, shadow distance, character effects ect...
+The in-game menu opens by clicking both sticks, and everything applies live:
+
+| Section | What it holds |
+|---|---|
+| Controls | walking speed and dead zone, snap or smooth turn, turn angle and speed |
+| Weapon | weapon size, swing threshold, trail, damage volume placement, knockback, throwing power |
+| Graphics | world scale, colour grading |
+| Effects | render scale, one switch per full-screen effect, shadows, level of detail |
+| Interface | HUD always visible, HUD size and distance |
+| Player | head centring, room-scale walking, camera blocked by walls, player height |
+| System | frame-rate counter, reset everything |
+
+Two of them are worth knowing about, because they undo assumptions the game makes that only
+hold on a flat screen. **Hit box** decides where a melee blow's damage volume goes: the game
+pins it two metres ahead of the *headset*, so it rides on your posture - crouch and it sinks
+with you. **Knockback** decides which way a struck enemy is thrown: the game pushes it along
+the *body's* forward, which is also "away from you" only because, on a screen, you always
+face what you hit.
+
+The robot is a lock-on weapon: look at an enemy to lock it, then fire.
 
 Everything is stored in `BepInEx/config/fr.awayvr.plugin.cfg`, which also holds the finer
 options that are not exposed in the menu - grenade offsets, swing threshold, fade timings,

@@ -84,17 +84,6 @@ namespace AwayVR
             return n;
         }
 
-        public static void ResetScanTimer() { _nextScan = 0f; }
-
-        private static void RestoreRenderers()
-        {
-            foreach (var kv in Saved)
-                if (kv.Key != null) kv.Key.shadowCastingMode = kv.Value;
-            Saved.Clear();
-        }
-
-        public static int PlayerLayer { get { return Layer; } }
-
         public static void Forget()
         {
             Saved.Clear();

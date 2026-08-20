@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace AwayVR
 {
-    [BepInPlugin(Guid, "Away VR", "0.1.0")]
+    [BepInPlugin(Guid, "Away VR", "0.2.0")]
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "fr.awayvr.plugin";
@@ -68,6 +68,10 @@ namespace AwayVR
         internal static ConfigEntry<HitboxPlacement> CfgHitboxPlacement;
         internal static ConfigEntry<float> CfgHitboxPitch;
         internal static ConfigEntry<KnockbackDirection> CfgKnockback;
+        internal static ConfigEntry<bool> CfgTargetLockFix;
+        internal static ConfigEntry<Patches.DropAim> CfgDropAim;
+        internal static ConfigEntry<bool> CfgTargetMarkersInWorld;
+        internal static ConfigEntry<float> CfgTargetMarkerSize;
         internal static ConfigEntry<float> CfgWeaponOffX, CfgWeaponOffY, CfgWeaponOffZ;
 
         // --- swing to attack ---
@@ -303,6 +307,27 @@ namespace AwayVR
                 new ConfigDescription("Viewmodel scale. A viewmodel is authored oversized: "
                     + "unnoticeable on a screen, glaring in VR.",
                     new AcceptableValueRange<float>(0.05f, 2f)));
+            CfgTargetLockFix = Config.Bind("034 - Weapons", "FixTargetLock", true,
+                "Gives the robot back its lock-on, without which it cannot fire at all. The game "
+                + "drops a locked target whose HUD marker has left the SCREEN, and reads the "
+                + "marker's transform position to decide - a pixel coordinate only while the "
+                + "canvas is an overlay. In VR that canvas belongs to an off-scene camera, so the "
+                + "value is a world position and no target ever survives the test.");
+            CfgDropAim = Config.Bind("034 - Weapons", "DropAim", Patches.DropAim.Weapon,
+                "Which way the tree throws. The game measures that direction ONCE, when the weapon "
+                + "is created, and keeps it - exact while the weapon hangs off the camera, "
+                + "meaningless once it hangs off your hand, where it freezes whatever angle your "
+                + "arm held at that instant. Weapon = where the weapon points. Gaze = where you "
+                + "look. Game = untouched.");
+            CfgTargetMarkersInWorld = Config.Bind("034 - Weapons", "TargetMarkersInWorld", true,
+                "Hangs the lock-on markers on the enemies themselves rather than on the HUD. The "
+                + "HUD is a texture you raise on demand here, so a marker drawn there is visible "
+                + "only when you are not fighting. False puts them back on the HUD canvas.");
+            CfgTargetMarkerSize = Config.Bind("034 - Weapons", "TargetMarkerSize", 0.06f,
+                new ConfigDescription(
+                    "Apparent size of a lock-on marker, as a fraction of its distance - so it "
+                    + "reads the same across the room as at arm's length. 0.06 is about 3 degrees.",
+                    new AcceptableValueRange<float>(0.01f, 0.30f)));
             CfgKnockback = Config.Bind("034 - Weapons", "KnockbackDirection", KnockbackDirection.Away,
                 "Which way a struck enemy is thrown. The game pushes it along the BODY's forward, "
                 + "which on a screen says three things at once - where the body points, where you "
@@ -545,6 +570,8 @@ namespace AwayVR
             PatchSafely(typeof(Patches.InputRedirect));
             PatchSafely(typeof(Patches.HitZone));
             PatchSafely(typeof(Patches.KnockbackPatches));
+            PatchSafely(typeof(Patches.TargetLockPatches));
+            PatchSafely(typeof(Patches.ThrowAimPatches));
             PatchSafely(typeof(Grenades));
             PatchSafely(typeof(Swing));
             try { Patches.InputRedirect.Apply(_harmony); }
